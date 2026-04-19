@@ -1,0 +1,47 @@
+id: godot4
+name: "Godot 4"
+detect_files:
+  - "project.godot"
+script_language: GDScript
+file_extensions:
+  script: [".gd"]
+  scene: [".tscn"]
+  resource: [".tres", ".res"]
+  import: [".import"]
+conventions:
+  static_typing: required
+  signal_naming: snake_case_past_tense
+  scene_transitions: "always via GameManager helpers"
+  no_print: "use DebugOverlay.log(key, value)"
+  no_hardcoded_ui: "all strings from data JSON"
+paths:
+  assets: "assets/"
+  scenes: "scenes/"
+  autoloads: "autoloads/"
+  data: "data/"
+sprite_output:
+  format: PNG
+  generate_import: true
+  import_template: |
+    [remap]
+    importer="texture"
+    type="CompressedTexture2D"
+    [deps]
+    [params]
+    compress/mode=0
+    compress/high_quality=false
+    mipmaps/generate=false
+    process/fix_alpha_border=true
+    process/premult_alpha=false
+    detect_3d/compress_to=1
+agent_context: |
+  Engine: Godot 4 (GDScript)
+  - All variables, parameters, and return types must be statically typed
+  - Signals: snake_case past-tense (e.g. score_changed, lives_depleted)
+  - Scene transitions: always through GameManager — never call get_tree().change_scene_to_file() directly
+  - Audio: always via AudioManager — never instantiate AudioStreamPlayer manually
+  - No print() — use DebugOverlay.log(key, value)
+  - No hardcoded UI text — all strings from LevelManager or JSON data
+  - Input actions by name ("punch", "kick") — never hardcode keycodes
+  - Physics layers: 1=player, 2=enemy, 3=hitbox, 4=world, 5=props
+  - Resources: typed Resource classes, always populate via from_dict() factory methods

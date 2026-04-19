@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}Run {{ run.run_id }} — Game Studio AI{% endblock %}
+{% block content %}
+<h1>Plan Run: <code>{{ run.run_id }}</code>
+  <span class="badge badge-{{ run.status }}">{{ run.status }}</span>
+</h1>
+<p style="color:#555;font-size:.85rem;margin-bottom:1rem;">
+  {{ run.plan_path.split('/')[-1] }}{% if run.engine %} · {{ run.engine }}{% endif %}
+  · started {{ run.created_at.strftime('%Y-%m-%d %H:%M') }}
+</p>
+
+<div class="grid-2">
+
+  <!-- Pipeline sidebar -->
+  <div>
+    <h2>Pipeline</h2>
+    {% set completed_ids = steps | map(attribute='step_id') | list %}
+    {% for step in plan_steps %}
+    <div class="pipeline-step {% if step.id in completed_ids %}done{% elif loop.first %}active{% else %}pending{% endif %}"
+         id="step-{{ step.id }}">
+      {% if step.id in completed_ids %}✅{% else %}⏸{% endif %}
+      <strong>{{ step.id }}</strong><br>
+      <small style="color:#666;">{{ step.agent }} · tier {{ step.tier }}</small>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Live output + gate -->
+  <div>
+    <h2>Agent Output</h2>
+    <div class="stream-box" id="stream-box"
+         hx-ext="sse"
+         sse-connect="/runs/{{ run.run_id }}/stream"
+         sse-swap="message"
+         hx-swap="beforeend">
+      {% for step in steps %}
+      <div style="margin-bottom:.5rem;">
+        <strong style="color:#7eb8f7;">▶ {{ step.agent_name }} ({{ step.step_id }})</strong><br>
+        {{ step.output[:600] }}{% if step.output|length > 600 %}…{% endif %}
+        {% if not step.gate_approved %}
+        <br><span style="color:#cf6f6f;">✋ Rejected: {{ step.gate_feedback }}</span>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+
+    <!-- Gate approval panel — shown when a __GATE__ signal is received -->
+    <div class="gate-box" id="gate-panel" style="display:none;">
+      <strong style="color:#6fcf6f;">Gate checkpoint — review agent output above</strong>
+      <div style="margin-top:.75rem;display:flex;flex-direction:column;gap:.5rem;">
+        <textarea id="gate-feedback" rows="2" placeholder="Optional feedback for the agent..."></textarea>
+        <div style="display:flex;gap:.75rem;">
+          <button class="btn btn-success" onclick="sendGate(true)">✅ Approve</button>
+          <button class="btn btn-danger"  onclick="sendGate(false)">✋ Reject</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const streamBox = document.getElementById('stream-box');
+  const gatePanel = document.getElementById('gate-panel');
+
+  // Auto-scroll stream box
+  const observer = new MutationObserver(() => {
+    streamBox.scrollTop = streamBox.scrollHeight;
+  });
+  observer.observe(streamBox, { childList: true, subtree: true });
+
+  // Watch for __GATE__ sentinel in SSE data
+  streamBox.addEventListener('htmx:sseMessage', function(evt) {
+    if (evt.detail && evt.detail.data && evt.detail.data.includes('__GATE__')) {
+      gatePanel.style.display = 'block';
+    }
+    if (evt.detail && evt.detail.data && evt.detail.data.includes('__DONE__')) {
+      gatePanel.style.display = 'none';
+      setTimeout(() => location.reload(), 800);
+    }
+  });
+
+  async function sendGate(approved) {
+    const feedback = document.getElementById('gate-feedback').value;
+    await fetch('/runs/{{ run.run_id }}/gate', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ approved, feedback })
+    });
+    gatePanel.style.display = 'none';
+    document.getElementById('gate-feedback').value = '';
+  }
+</script>
+{% endblock %}

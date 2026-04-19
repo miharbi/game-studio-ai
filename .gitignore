@@ -1,0 +1,28 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+*.db
+.venv/
+venv/
+dist/
+build/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# Output files (keep placeholders)
+output/pending/*
+output/approved/*
+output/sprites/*
+!output/pending/.gitkeep
+!output/approved/.gitkeep
+!output/sprites/.gitkeep
+
+# Active plan state
+plans/active/*
+!plans/active/.gitkeep
+
+# Session run database
+runs.db

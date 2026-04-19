@@ -1,0 +1,25 @@
+# Tier → model mapping.
+# Any litellm-supported model ID can be used. Prefix: openai/, anthropic/, github/, etc.
+
+tiers:
+  1:
+    model: "github/gpt-4.1"
+    description: "Directors — highest quality, used for vision/approval gates"
+  2:
+    model: "github/gpt-4.1-mini"
+    description: "Department leads — balanced quality/cost"
+  3:
+    model: "github/gpt-4.1-mini"
+    description: "Specialists — fast iteration"
+
+# Per-engine model overrides (optional)
+engine_overrides:
+  godot4: {}
+  unity: {}
+  unreal5: {}
+
+# Sprite generation config
+sprites:
+  provider: "stub"          # stub | openai | stable_diffusion
+  model: "dall-e-3"
+  image_size: "1024x1024"

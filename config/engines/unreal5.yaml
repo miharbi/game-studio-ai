@@ -1,0 +1,40 @@
+id: unreal5
+name: "Unreal Engine 5"
+detect_files:
+  - "*.uproject"
+script_language: "Blueprints / C++"
+file_extensions:
+  blueprint: [".uasset"]
+  cpp_header: [".h"]
+  cpp_source: [".cpp"]
+  map: [".umap"]
+conventions:
+  gameplay_ability_system: "preferred for character abilities"
+  common_ui: "preferred for cross-platform menus and HUD"
+  naming:
+    blueprints: "BP_"
+    widgets: "WBP_"
+    materials: "M_"
+    textures: "T_"
+    static_mesh: "SM_"
+    character: "BP_Character_"
+paths:
+  content: "Content/"
+  source: "Source/"
+  blueprints: "Content/Blueprints/"
+  ui: "Content/UI/"
+sprite_output:
+  format: PNG
+  generate_uasset_metadata: true
+  compression: TC_EditorIcon
+agent_context: |
+  Engine: Unreal Engine 5 (Blueprints / C++)
+  - Naming: Blueprints=BP_, Widgets=WBP_, Materials=M_, Textures=T_, StaticMesh=SM_
+  - Use Gameplay Ability System (GAS) for all character abilities
+  - UI: CommonUI plugin for cross-platform menus; UMG for widgets
+  - Replication: always server-authoritative for multiplayer logic
+  - C++ for core systems and performance-critical code
+  - Blueprints for designers and rapid prototyping
+  - Asset references via TSoftObjectPtr<> for async loading
+  - Never use hard references in frequently-loaded assets
+  - Enhanced Input system for all player input

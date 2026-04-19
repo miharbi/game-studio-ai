@@ -1,0 +1,39 @@
+id: unity
+name: "Unity"
+detect_files:
+  - "*.sln"
+  - "ProjectSettings/ProjectVersion.txt"
+script_language: CSharp
+file_extensions:
+  script: [".cs"]
+  scene: [".unity"]
+  prefab: [".prefab"]
+  meta: [".meta"]
+  asset: [".asset"]
+conventions:
+  namespaces: required
+  assembly_definitions: recommended
+  addressables: "for runtime-loaded assets — never Resources.Load()"
+  ui_toolkit: "preferred over uGUI for new UI"
+  serialize_field: "for inspector-exposed private fields"
+paths:
+  assets: "Assets/"
+  scripts: "Assets/Scripts/"
+  scenes: "Assets/Scenes/"
+  prefabs: "Assets/Prefabs/"
+sprite_output:
+  format: PNG
+  generate_meta: true
+  texture_type: Sprite
+  pixels_per_unit: 100
+agent_context: |
+  Engine: Unity (C#)
+  - Always use namespaces matching the folder structure
+  - Every asset must have a .meta file — never delete .meta files
+  - Use Addressables for runtime-loaded assets, not Resources.Load()
+  - UI: prefer UI Toolkit over uGUI for new screens
+  - DOTS/ECS for performance-critical gameplay systems
+  - Avoid FindObjectOfType() in Update() — cache references in Awake()
+  - [SerializeField] for inspector-exposed private fields
+  - Async/await with UniTask over coroutines for new code
+  - Assembly definitions to minimize recompilation scope

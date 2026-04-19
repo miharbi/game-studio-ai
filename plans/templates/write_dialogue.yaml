@@ -1,0 +1,57 @@
+task: write_dialogue
+description: >
+  Dialogue writing pipeline — narrative direction through localization
+  review and QA sign-off. Produces schema-valid JSON dialogue entries
+  ready to merge into the levels data file.
+engine: null
+input: >
+  Describe the dialogue to write. Include: which world/wave it belongs
+  to, which characters are involved (player_1, player_2, enemy, boss),
+  the narrative moment (what just happened in the story), tone
+  (menacing, comic, tense), and the target region/language.
+
+steps:
+  - id: narrative_direction
+    agent: narrative_director
+    tier: 2
+    action: >
+      Define the narrative beat: what story information is conveyed,
+      the emotional arc of the exchange, speaker voice notes, and
+      the trigger conditions for each line. Ensure the dialogue fits
+      the established character voices and world lore.
+    gate: auto
+    validate_as: feature_design
+
+  - id: dialogue_writing
+    agent: writer
+    tier: 3
+    action: >
+      Using the narrative direction, write the complete dialogue lines
+      as schema-valid JSON entries for the dialogues_pool[] array.
+      All lines must be under 60 characters. Use natural Venezuelan
+      Spanish (or the specified target region's language).
+    depends_on: [narrative_direction]
+    gate: auto
+    validate_as: json
+
+  - id: localization_review
+    agent: localization_lead
+    tier: 2
+    action: >
+      Review all dialogue lines for regional authenticity, cultural
+      accuracy, character limit compliance, and tone consistency.
+      Provide corrected lines where needed with localization notes.
+    depends_on: [dialogue_writing]
+    gate: auto
+
+  - id: dialogue_qa
+    agent: qa_tester
+    tier: 3
+    action: >
+      Write test cases for the dialogue: trigger conditions fire at
+      the right moments, lines display within UI bounds, no duplicate
+      IDs, speaker assignments are correct, and all regional language
+      variants display without encoding issues.
+    depends_on: [localization_review]
+    gate: human_review
+    validate_as: json

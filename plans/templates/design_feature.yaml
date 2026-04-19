@@ -1,0 +1,50 @@
+task: design_feature
+description: >
+  Full creative-to-QA pipeline for designing a new gameplay feature.
+  Starts with creative sign-off, flows through game design and systems
+  design, and ends with a QA test plan ready for implementation.
+engine: null  # auto-detect or override with --engine
+input: >
+  Describe the feature to design. Include: player goal, rough mechanic
+  idea, target world/level, and any constraints.
+
+steps:
+  - id: creative_review
+    agent: creative_director
+    tier: 1
+    action: >
+      Review the proposed feature against the game's creative vision.
+      Approve or reject the concept and provide refinement notes.
+    gate: human_review
+    validate_as: feature_design
+
+  - id: game_design_spec
+    agent: game_designer
+    tier: 2
+    action: >
+      Using the creative director's approved concept and refinement notes,
+      write a complete game design specification including mechanics,
+      player feel, input mapping, and edge cases.
+    depends_on: [creative_review]
+    gate: auto
+
+  - id: systems_design
+    agent: systems_designer
+    tier: 3
+    action: >
+      Based on the game design spec, design the underlying systems:
+      progression hooks, score impact, feedback loops, and balance
+      parameters. Flag any new JSON schema keys needed.
+    depends_on: [game_design_spec]
+    gate: auto
+    validate_as: feature_design
+
+  - id: qa_test_plan
+    agent: qa_tester
+    tier: 3
+    action: >
+      Write a complete test plan for the designed feature: happy path,
+      edge cases, regression vectors, and platform-specific checks.
+      Include at least one human "feel" test case.
+    depends_on: [systems_design]
+    gate: human_review

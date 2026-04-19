@@ -1,0 +1,55 @@
+task: code_review
+description: >
+  Structured code review pipeline — lead programmer sets standards,
+  engine specialist reviews integration, security engineer audits
+  for vulnerabilities, and QA writes regression tests.
+engine: null
+input: >
+  Paste the code to review, or describe the system/feature to be
+  reviewed. Include: file paths, what the code does, and any specific
+  concerns (performance, security, architecture, engine integration).
+
+steps:
+  - id: standards_review
+    agent: lead_programmer
+    tier: 2
+    action: >
+      Review the submitted code against project coding standards:
+      static typing, naming conventions, no hardcoded values, no
+      direct scene transitions, no print() calls, no hardcoded UI
+      strings, input by action name, audio via AudioManager.
+      Produce a prioritized findings list (BLOCKER | MAJOR | MINOR).
+    gate: auto
+    validate_as: code_block
+
+  - id: engine_integration_review
+    agent: engine_programmer
+    tier: 3
+    action: >
+      Review engine-specific integration concerns: autoload usage,
+      physics layer correctness, Resource loading patterns, scene
+      lifecycle handling, and platform compatibility flags.
+      Reference the target engine's best practices.
+    depends_on: [standards_review]
+    gate: auto
+
+  - id: security_review
+    agent: security_engineer
+    tier: 3
+    action: >
+      Audit the code for security vulnerabilities using the OWASP Top 10
+      as a baseline plus game-specific threats (score manipulation,
+      credential exposure, client trust issues). Provide specific
+      remediation code for any CRITICAL or HIGH findings.
+    depends_on: [standards_review]
+    gate: auto
+
+  - id: regression_test_plan
+    agent: qa_tester
+    tier: 3
+    action: >
+      Write regression test cases that verify the reviewed code works
+      correctly and doesn't break adjacent systems. Include at least
+      one negative test (invalid input / error path) per function.
+    depends_on: [engine_integration_review, security_review]
+    gate: human_review

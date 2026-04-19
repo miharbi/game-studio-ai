@@ -1,0 +1,53 @@
+task: design_level
+description: >
+  Full pipeline for designing a new game level/world — from concept
+  through layout, wave composition, art direction, and technical review.
+engine: null
+input: >
+  Describe the new level. Include: world number (e.g. World02), theme,
+  setting (neighborhood, time of day), target difficulty relative to
+  the previous world, and any narrative context.
+
+steps:
+  - id: level_concept
+    agent: game_designer
+    tier: 2
+    action: >
+      Design the level concept: pacing structure, number of waves,
+      enemy progression, boss concept, and player emotional arc from
+      start to completion. Apply the difficulty scaling guidelines.
+    gate: human_review
+    validate_as: feature_design
+
+  - id: level_layout
+    agent: level_designer
+    tier: 3
+    action: >
+      Using the approved concept, produce a complete schema-valid JSON
+      world block including all waves, enemy placements, trigger_x values,
+      props (with at least one health pickup per 2 combat waves), and
+      boss wave. Include a difficulty analysis section.
+    depends_on: [level_concept]
+    gate: auto
+    validate_as: level_json
+
+  - id: world_dressing
+    agent: world_builder
+    tier: 3
+    action: >
+      Fill the world with environmental detail: complete all 20
+      art_direction keys, place scenario_ads, and enrich the props list
+      with throwables and destructibles. Ensure props are spread across
+      the scroll_limit and not clustered.
+    depends_on: [level_layout]
+    gate: auto
+
+  - id: technical_review
+    agent: technical_director
+    tier: 1
+    action: >
+      Review the complete world JSON for schema compliance, performance
+      concerns (prop count, wave density), and consistency with the
+      existing level architecture. Approve or reject with specific notes.
+    depends_on: [world_dressing]
+    gate: human_review

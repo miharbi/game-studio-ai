@@ -1,0 +1,46 @@
+task: generate_sprites
+description: >
+  AI sprite generation pipeline — art direction through post-processing
+  and QA review. Produces engine-ready sprite assets.
+engine: null
+input: >
+  Describe the sprites to generate. Include: asset type (character |
+  background | prop | ui | vfx), asset name, style notes, and which
+  world/level they belong to.
+
+steps:
+  - id: art_direction
+    agent: art_director
+    tier: 2
+    action: >
+      Write detailed asset specifications for each requested sprite:
+      pixel dimensions, animation frame counts, palette constraints,
+      image generation prompt, and negative prompt. Reference the
+      project's established visual style guide.
+    gate: auto
+    validate_as: sprite_spec
+
+  - id: sprite_generation
+    agent: technical_artist
+    tier: 3
+    action: >
+      Based on the art direction specs, produce the final sprite
+      generation configuration: atlas layout, import settings for
+      the target engine, and post-processing instructions (palette
+      swap channels, outline weight, compression settings).
+      The sprite pipeline will use these specs to generate and
+      post-process the images.
+    depends_on: [art_direction]
+    gate: auto
+    validate_as: sprite_spec
+
+  - id: sprite_qa
+    agent: qa_tester
+    tier: 3
+    action: >
+      Write a visual QA checklist for the generated sprites: pixel
+      consistency, transparent background, correct dimensions, animation
+      frame count, palette compliance, and engine import verification.
+      Include platform-specific checks (mobile downscale legibility).
+    depends_on: [sprite_generation]
+    gate: human_review

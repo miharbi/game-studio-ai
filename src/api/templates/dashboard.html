@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — Game Studio AI{% endblock %}
+{% block content %}
+<h1>Dashboard</h1>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;">
+
+  <!-- Run a plan -->
+  <div class="card">
+    <h2>Run a Plan</h2>
+    <form hx-post="/plans/run"
+          hx-target="#run-result"
+          hx-swap="innerHTML"
+          style="display:flex;flex-direction:column;gap:.75rem;">
+      <label>Plan template
+        <select name="plan">
+          {% for p in plans %}
+          <option value="{{ p }}">{{ p }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>Engine
+        <select name="engine">
+          <option value="">— auto-detect —</option>
+          <option value="godot4">Godot 4</option>
+          <option value="unity">Unity</option>
+          <option value="unreal5">Unreal Engine 5</option>
+        </select>
+      </label>
+      <label>Input / context
+        <textarea name="input_text" rows="3" placeholder="Describe the feature, level, or task..."></textarea>
+      </label>
+      <button class="btn btn-primary" type="submit">▶ Run</button>
+    </form>
+    <div id="run-result" style="margin-top:.75rem;"></div>
+  </div>
+
+  <!-- Recent runs -->
+  <div class="card">
+    <h2>Recent Runs</h2>
+    {% if runs %}
+    {% for run in runs %}
+    <div style="margin-bottom:.75rem;padding-bottom:.75rem;border-bottom:1px solid #222;">
+      <a href="/runs/{{ run.run_id }}"><strong>{{ run.run_id }}</strong></a>
+      <span class="badge badge-{{ run.status }}">{{ run.status }}</span><br>
+      <small style="color:#666;">{{ run.plan_path.split('/')[-1] }}
+        {% if run.engine %} · {{ run.engine }}{% endif %}
+        · {{ run.created_at.strftime('%Y-%m-%d %H:%M') }}
+      </small>
+    </div>
+    {% endfor %}
+    {% else %}
+    <p style="color:#555;">No runs yet. Start one above.</p>
+    {% endif %}
+  </div>
+
+</div>
+
+<script>
+  // After form submit, redirect to the run detail page
+  document.body.addEventListener('htmx:afterRequest', function(evt) {
+    if (evt.detail.pathInfo && evt.detail.pathInfo.requestPath === '/plans/run') {
+      try {
+        const data = JSON.parse(evt.detail.xhr.responseText);
+        if (data.run_id) {
+          window.location.href = '/runs/' + data.run_id;
+        }
+      } catch(e) {}
+    }
+  });
+</script>
+{% endblock %}

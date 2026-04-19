@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Sprites — Game Studio AI{% endblock %}
+{% block content %}
+<h1>Sprite Gallery</h1>
+<p style="color:#555;font-size:.85rem;margin-bottom:1rem;">
+  Generated sprites awaiting approval. Approved sprites move to <code>output/approved/</code>.
+</p>
+
+{% if images %}
+<div class="sprite-grid">
+  {% for img in images %}
+  <div class="sprite-card" id="sprite-{{ loop.index }}">
+    <img src="/output/sprites/{{ img }}" alt="{{ img }}">
+    <p style="font-size:.75rem;color:#888;margin-bottom:.5rem;word-break:break-all;">{{ img }}</p>
+    <div style="display:flex;gap:.5rem;justify-content:center;">
+      <button class="btn btn-success"
+              hx-post="/sprites/{{ img }}/approve"
+              hx-target="#sprite-{{ loop.index }}"
+              hx-swap="outerHTML">✅</button>
+      <button class="btn btn-danger"
+              hx-post="/sprites/{{ img }}/reject"
+              hx-target="#sprite-{{ loop.index }}"
+              hx-swap="outerHTML">🗑</button>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="card">
+  <p style="color:#555;">No sprites pending review. Run a sprite generation plan to produce images.</p>
+</div>
+{% endif %}
+{% endblock %}
