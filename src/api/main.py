@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from src.api.routes import plans, gates, sprites as sprite_routes
+from src.api.routes import plans, gates, sprites as sprite_routes, editors
 
 _BASE_DIR: Path = Path(__file__).resolve().parent
 
@@ -27,3 +27,4 @@ app.state.templates = templates
 app.include_router(plans.router)
 app.include_router(gates.router)
 app.include_router(sprite_routes.router)
+app.include_router(editors.router)

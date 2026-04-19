@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Engine Configs — Game Studio AI{% endblock %}
+{% block page_title %}Engine Configurations{% endblock %}
+{% block content %}
+<p class="text-sm opacity-50 mb-6">
+  Engine-specific conventions, file patterns, and sprite output settings.
+</p>
+<div class="card bg-base-200 mb-4">
+  <div class="card-body">
+    <div class="flex flex-wrap gap-2">
+      {% for e in engines %}
+      <a href="/edit/engines/{{ e }}" class="btn btn-sm btn-primary btn-outline">
+        ⚙️ {{ e | replace('.yaml','') | replace('_',' ') | title }}
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+<!-- Create new engine config -->
+<div class="card bg-base-200">
+  <div class="card-body">
+    <h2 class="card-title text-sm">Create New Engine Config</h2>
+    <div class="flex flex-col gap-3 max-w-md mt-2">
+      <div class="form-control">
+        <label class="label"><span class="label-text">Engine ID (snake_case)</span></label>
+        <input type="text" id="new-engine-name" class="input input-bordered input-sm" placeholder="e.g. bevy">
+      </div>
+      <button class="btn btn-sm btn-success" onclick="createEngine()">+ Create Engine</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+async function createEngine() {
+  var name = document.getElementById('new-engine-name').value.trim();
+  if (!name) { showToast('Enter an engine ID', 'warning'); return; }
+  var template = 'id: ' + name + '\nname: "' + name + '"\ndetect_files:\n  - "project.cfg"\nscript_language: GDScript\nfile_extensions:\n  script: [".gd"]\nconventions:\n  static_typing: required\npaths:\n  assets: "assets/"\nsprite_output:\n  format: PNG\n';
+  var res = await fetch('/edit/engines', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({new_name: name + '.yaml', content: template}),
+  });
+  if (res.ok) {
+    var data = await res.json();
+    window.location.href = '/edit/engines/' + data.file;
+  } else {
+    var err = await res.json();
+    showToast(err.detail || 'Error creating engine', 'error');
+  }
+}
+</script>
+{% endblock %}

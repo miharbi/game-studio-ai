@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Agents — Game Studio AI{% endblock %}
+{% block page_title %}Agents{% endblock %}
+{% block content %}
+<p class="text-sm opacity-50 mb-6">
+  All agent definitions across tiers. Click to edit, or create a new agent below.
+</p>
+{% for tier_name in ['tier1', 'tier2', 'tier3'] %}
+<div class="card bg-base-200 mb-4">
+  <div class="card-body">
+    <h2 class="card-title text-sm">
+      {% if tier_name == 'tier1' %}🎯 Tier 1 — Directors
+      {% elif tier_name == 'tier2' %}📋 Tier 2 — Leads
+      {% else %}🔧 Tier 3 — Specialists{% endif %}
+    </h2>
+    <div class="flex flex-wrap gap-2 mt-2">
+      {% for a in agents if a.tier == tier_name %}
+      <a href="/edit/agents/{{ a.tier }}/{{ a.file }}" class="btn btn-sm btn-primary btn-outline">
+        {{ a.file | replace('.md','') | replace('_',' ') | title }}
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endfor %}
+<!-- Create new agent -->
+<div class="card bg-base-200">
+  <div class="card-body">
+    <h2 class="card-title text-sm">Create New Agent</h2>
+    <div class="flex flex-col gap-3 max-w-md mt-2">
+      <div class="form-control">
+        <label class="label"><span class="label-text">Tier</span></label>
+        <select id="new-tier" class="select select-bordered select-sm">
+          <option value="tier1">Tier 1 — Directors</option>
+          <option value="tier2">Tier 2 — Leads</option>
+          <option value="tier3" selected>Tier 3 — Specialists</option>
+        </select>
+      </div>
+      <div class="form-control">
+        <label class="label"><span class="label-text">Name (snake_case)</span></label>
+        <input type="text" id="new-agent-name" class="input input-bordered input-sm" placeholder="e.g. vfx_artist">
+      </div>
+      <button class="btn btn-sm btn-success" onclick="createAgent()">+ Create Agent</button>
+      <div id="create-result" class="text-sm"></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+async function createAgent() {
+  var tier = document.getElementById('new-tier').value;
+  var name = document.getElementById('new-agent-name').value.trim();
+  if (!name) { showToast('Enter a name', 'warning'); return; }
+  var body = {
+    name: name,
+    tier: parseInt(tier.replace('tier','')),
+    reports_to: null,
+    domain: '',
+    body: 'You are the ' + name.replace(/_/g,' ') + ' of a game development studio.\n\nYour responsibilities:\n- ...\n\nYour output format:\n- ...\n',
+  };
+  var res = await fetch('/edit/agents/' + tier, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(body),
+  });
+  if (res.ok) {
+    var data = await res.json();
+    window.location.href = '/edit/agents/' + tier + '/' + data.file.split('/').pop();
+  } else {
+    var err = await res.json();
+    showToast(err.detail || 'Error creating agent', 'error');
+  }
+}
+</script>
+{% endblock %}

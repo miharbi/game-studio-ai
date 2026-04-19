@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Plans — Game Studio AI{% endblock %}
+{% block page_title %}Plan Templates{% endblock %}
+{% block content %}
+<p class="text-sm opacity-50 mb-6">
+  Pipeline definitions that orchestrate agent workflows. Click to edit.
+</p>
+<div class="card bg-base-200 mb-4">
+  <div class="card-body">
+    <div class="flex flex-wrap gap-2">
+      {% for p in plans %}
+      <a href="/edit/plans/{{ p }}" class="btn btn-sm btn-primary btn-outline">
+        📄 {{ p | replace('.yaml','') | replace('_',' ') | title }}
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+<!-- Create new plan -->
+<div class="card bg-base-200">
+  <div class="card-body">
+    <h2 class="card-title text-sm">Create New Plan</h2>
+    <div class="flex flex-col gap-3 max-w-md mt-2">
+      <div class="form-control">
+        <label class="label"><span class="label-text">Task name (snake_case)</span></label>
+        <input type="text" id="new-plan-name" class="input input-bordered input-sm" placeholder="e.g. design_boss_fight">
+      </div>
+      <button class="btn btn-sm btn-success" onclick="createPlan()">+ Create Plan</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+async function createPlan() {
+  var name = document.getElementById('new-plan-name').value.trim();
+  if (!name) { showToast('Enter a task name', 'warning'); return; }
+  var body = {
+    task: name,
+    description: 'Describe this plan.',
+    engine: null,
+    input_text: 'What input does this plan need?',
+    steps: [{
+      id: 'step_1',
+      agent: 'creative_director',
+      tier: 1,
+      action: 'Describe the action.',
+      gate: 'auto',
+      depends_on: [],
+      validate_as: null,
+    }],
+  };
+  var res = await fetch('/edit/plans', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(body),
+  });
+  if (res.ok) {
+    var data = await res.json();
+    window.location.href = '/edit/plans/' + data.file;
+  } else {
+    var err = await res.json();
+    showToast(err.detail || 'Error creating plan', 'error');
+  }
+}
+</script>
+{% endblock %}

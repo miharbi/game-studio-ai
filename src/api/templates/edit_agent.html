@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}{{ agent.name }} — Game Studio AI{% endblock %}
+{% block page_title %}Edit Agent: {{ filename }}{% endblock %}
+{% block content %}
+<!-- Breadcrumb -->
+<div class="breadcrumbs text-sm mb-4">
+  <ul>
+    <li><a href="/edit/agents">Agents</a></li>
+    <li><a href="/edit/agents">{{ tier | replace('tier','Tier ') }}</a></li>
+    <li>{{ filename | replace('.md','') | replace('_',' ') | title }}</li>
+  </ul>
+</div>
+<!-- Form -->
+<div class="card bg-base-200 mb-4">
+  <div class="card-body">
+    <h2 class="card-title text-sm uppercase tracking-wider opacity-60 mb-3">Frontmatter</h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div class="form-control">
+        <label class="label"><span class="label-text">Name</span></label>
+        <input type="text" id="agent-name" class="input input-bordered" value="{{ agent.name }}">
+      </div>
+      <div class="form-control">
+        <label class="label"><span class="label-text">Tier</span></label>
+        <select id="agent-tier" class="select select-bordered">
+          <option value="1" {% if agent.tier == 1 %}selected{% endif %}>1 — Directors</option>
+          <option value="2" {% if agent.tier == 2 %}selected{% endif %}>2 — Leads</option>
+          <option value="3" {% if agent.tier == 3 %}selected{% endif %}>3 — Specialists</option>
+        </select>
+      </div>
+      <div class="form-control">
+        <label class="label"><span class="label-text">Reports To</span></label>
+        <select id="agent-reports-to" class="select select-bordered">
+          <option value="">— None —</option>
+          {% for a in agents_list %}
+          <option value="{{ a.file | replace('.md','') }}"
+            {% if agent.reports_to == a.file | replace('.md','') %}selected{% endif %}>
+            {{ a.file | replace('.md','') | replace('_',' ') | title }} ({{ a.tier }})
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-control">
+        <label class="label"><span class="label-text">Domain</span></label>
+        <input type="text" id="agent-domain" class="input input-bordered" value="{{ agent.domain }}">
+      </div>
+      <div class="form-control md:col-span-2">
+        <label class="label"><span class="label-text">Model Override</span></label>
+        <select id="agent-model" class="select select-bordered">
+          <option value="">— Use tier default —</option>
+          {% for m in models_list %}
+          <option value="{{ m }}" {% if agent.get('model_override') == m %}selected{% endif %}>{{ m }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- Body (markdown) -->
+<div class="card bg-base-200 mb-4">
+  <div class="card-body">
+    <h2 class="card-title text-sm uppercase tracking-wider opacity-60 mb-3">Agent Instructions (Markdown)</h2>
+    <div id="body-editor" class="border border-base-300 rounded-lg overflow-hidden min-h-[400px]"></div>
+    <textarea id="body-raw" class="hidden">{{ agent.body }}</textarea>
+  </div>
+</div>
+<!-- Action bar -->
+<div class="flex justify-between items-center sticky bottom-0 bg-base-100 py-3 border-t border-base-300 -mx-6 px-6">
+  <a href="/edit/agents" class="btn btn-ghost">← Back</a>
+  <div class="flex gap-2 items-center">
+    <span id="save-status" class="text-sm opacity-60"></span>
+    <button class="btn btn-primary" onclick="saveAgent()" id="save-btn">💾 Save</button>
+    <button class="btn btn-error btn-outline" onclick="deleteAgent()">🗑 Delete</button>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script type="module">
+import {initEditor} from '/static/editor-init.js';
+let bodyContent = document.getElementById('body-raw').value;
+const editor = initEditor(
+  document.getElementById('body-editor'),
+  'markdown',
+  bodyContent,
+  (val) => { bodyContent = val; }
+);
+window._getBody = () => bodyContent;
+</script>
+<script>
+document.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); saveAgent(); }
+});
+async function saveAgent() {
+  const btn = document.getElementById('save-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Saving…';
+  const body = {
+    name: document.getElementById('agent-name').value,
+    tier: parseInt(document.getElementById('agent-tier').value),
+    reports_to: document.getElementById('agent-reports-to').value || null,
+    domain: document.getElementById('agent-domain').value,
+    model_override: document.getElementById('agent-model').value || null,
+    body: window._getBody ? window._getBody() : document.getElementById('body-raw').value,
+  };
+  const res = await fetch('/edit/agents/{{ tier }}/{{ filename }}', {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body),
+  });
+  if (res.ok) {
+    showToast('Agent saved', 'success');
+    document.getElementById('save-status').textContent = '✓ Saved';
+  } else {
+    const err = await res.json();
+    showToast(err.detail || 'Save failed', 'error');
+    document.getElementById('save-status').textContent = '✗ Error';
+  }
+  btn.disabled = false;
+  btn.textContent = '💾 Save';
+}
+function deleteAgent() {
+  showConfirm('Delete Agent', 'Delete {{ filename }}? This cannot be undone.', async () => {
+    const res = await fetch('/edit/agents/{{ tier }}/{{ filename }}', {method: 'DELETE'});
+    if (res.ok) {
+      showToast('Agent deleted', 'success');
+      setTimeout(() => window.location.href = '/edit/agents', 500);
+    } else {
+      const err = await res.json();
+      showToast(err.detail || 'Delete failed', 'error');
+    }
+  });
+}
+</script>
+{% endblock %}

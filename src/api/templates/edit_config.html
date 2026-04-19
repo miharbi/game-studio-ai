@@ -1,0 +1,212 @@
+{% extends "base.html" %}
+{% block title %}Config — Game Studio AI{% endblock %}
+{% block page_title %}Model Configuration{% endblock %}
+{% block head_extra %}
+<script src="https://cdn.jsdelivr.net/npm/js-yaml@4/dist/js-yaml.min.js"></script>
+{% endblock %}
+{% block content %}
+<!-- Tabs -->
+<div role="tablist" class="tabs tabs-bordered mb-6">
+  <a role="tab" class="tab tab-active" onclick="switchTab(event, 'tab-tiers')">Tiers</a>
+  <a role="tab" class="tab" onclick="switchTab(event, 'tab-sprites')">Sprites</a>
+  <a role="tab" class="tab" onclick="switchTab(event, 'tab-providers')">Providers</a>
+  <a role="tab" class="tab" onclick="switchTab(event, 'tab-raw')">Full YAML</a>
+</div>
+
+<!-- Tab: Tiers -->
+<div id="tab-tiers" class="tab-content">
+  <div class="card bg-base-200 mb-4">
+    <div class="card-body">
+      <h2 class="card-title text-sm uppercase tracking-wider opacity-60 mb-4">Tier → Model Assignment</h2>
+      {% for tier_num in [1, 2, 3] %}
+      {% set tier = config.tiers.get(tier_num, {}) %}
+      <div class="flex flex-col md:flex-row gap-4 items-start md:items-end mb-4 pb-4 {% if not loop.last %}border-b border-base-300{% endif %}">
+        <div class="form-control w-full md:w-1/4">
+          <label class="label"><span class="label-text font-bold">Tier {{ tier_num }}
+            {% if tier_num == 1 %}— Directors{% elif tier_num == 2 %}— Leads{% else %}— Specialists{% endif %}
+          </span></label>
+        </div>
+        <div class="form-control w-full md:w-2/5">
+          <label class="label"><span class="label-text text-xs">Model</span></label>
+          <select class="select select-bordered tier-model" data-tier="{{ tier_num }}">
+            {% for m in all_models %}
+            <option value="{{ m }}" {% if tier.get('model') == m %}selected{% endif %}>{{ m }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-control w-full md:w-2/5">
+          <label class="label"><span class="label-text text-xs">Description</span></label>
+          <input type="text" class="input input-bordered tier-desc" data-tier="{{ tier_num }}" value="{{ tier.get('description', '') }}">
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<!-- Tab: Sprites -->
+<div id="tab-sprites" class="tab-content hidden">
+  <div class="card bg-base-200 mb-4">
+    <div class="card-body">
+      <h2 class="card-title text-sm uppercase tracking-wider opacity-60 mb-4">Sprite Generation</h2>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="form-control">
+          <label class="label"><span class="label-text">Provider</span></label>
+          <select id="sprite-provider" class="select select-bordered">
+            <option value="stub" {% if config.sprites.get('provider') == 'stub' %}selected{% endif %}>stub</option>
+            <option value="openai" {% if config.sprites.get('provider') == 'openai' %}selected{% endif %}>openai</option>
+            <option value="stable_diffusion" {% if config.sprites.get('provider') == 'stable_diffusion' %}selected{% endif %}>stable_diffusion</option>
+          </select>
+        </div>
+        <div class="form-control">
+          <label class="label"><span class="label-text">Model</span></label>
+          <input type="text" id="sprite-model" class="input input-bordered" value="{{ config.sprites.get('model', 'dall-e-3') }}">
+        </div>
+        <div class="form-control">
+          <label class="label"><span class="label-text">Image Size</span></label>
+          <input type="text" id="sprite-size" class="input input-bordered" value="{{ config.sprites.get('image_size', '1024x1024') }}">
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Tab: Providers -->
+<div id="tab-providers" class="tab-content hidden">
+  <div class="card bg-base-200 mb-4">
+    <div class="card-body">
+      <h2 class="card-title text-sm uppercase tracking-wider opacity-60 mb-4">Provider Catalog</h2>
+      <p class="text-sm opacity-50 mb-4">Reference view. Use the Full YAML tab for advanced editing.</p>
+      {% for prov_name, prov in config.providers.items() %}
+      <div class="collapse collapse-arrow bg-base-300 mb-2">
+        <input type="checkbox" {% if loop.first %}checked{% endif %}>
+        <div class="collapse-title font-medium">
+          {{ prov_name }}
+          <span class="badge badge-sm badge-ghost ml-2">{{ prov.get('env_key', '') }}</span>
+          <span class="badge badge-sm badge-primary ml-1">{{ prov.get('models', []) | length }} models</span>
+        </div>
+        <div class="collapse-content">
+          <div class="overflow-x-auto">
+            <table class="table table-xs">
+              <thead><tr><th>Model ID</th><th>Context</th><th>Note</th></tr></thead>
+              <tbody>
+                {% for m in prov.get('models', []) %}
+                <tr>
+                  <td class="font-mono text-xs">{{ m.id }}</td>
+                  <td>{{ '{:,}'.format(m.get('context_window', 0)) }}</td>
+                  <td class="text-xs opacity-60">{{ m.get('note', '') }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<!-- Tab: Raw YAML -->
+<div id="tab-raw" class="tab-content hidden">
+  <div class="card bg-base-200 mb-4">
+    <div class="card-body">
+      <h2 class="card-title text-sm uppercase tracking-wider opacity-60 mb-3">Raw YAML Editor</h2>
+      <div id="yaml-editor" class="border border-base-300 rounded-lg overflow-hidden min-h-[500px]"></div>
+      <textarea id="yaml-raw" class="hidden">{{ config.raw }}</textarea>
+    </div>
+  </div>
+</div>
+
+<!-- Action bar -->
+<div class="flex justify-between items-center sticky bottom-0 bg-base-100 py-3 border-t border-base-300 -mx-6 px-6">
+  <a href="/" class="btn btn-ghost">← Dashboard</a>
+  <div class="flex gap-2 items-center">
+    <span id="save-status" class="text-sm opacity-60"></span>
+    <button class="btn btn-primary" onclick="saveConfig()" id="save-btn">💾 Save</button>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script type="module">
+import {initEditor, getContent} from '/static/editor-init.js';
+let yamlContent = document.getElementById('yaml-raw').value;
+const editor = initEditor(
+  document.getElementById('yaml-editor'),
+  'yaml',
+  yamlContent,
+  (val) => { yamlContent = val; }
+);
+window._getYaml = () => yamlContent;
+window._cmEditor = editor;
+</script>
+<script>
+var activeTab = 'tab-tiers';
+
+function switchTab(evt, tabId) {
+  document.querySelectorAll('.tab-content').forEach(function(el) { el.classList.add('hidden'); });
+  document.getElementById(tabId).classList.remove('hidden');
+  document.querySelectorAll('[role=tab]').forEach(function(el) { el.classList.remove('tab-active'); });
+  evt.target.classList.add('tab-active');
+  activeTab = tabId;
+}
+
+function buildYamlFromForm() {
+  // Parse current YAML to preserve providers and engine_overrides
+  var current;
+  try {
+    current = jsyaml.load(window._getYaml ? window._getYaml() : document.getElementById('yaml-raw').value) || {};
+  } catch(e) {
+    current = {};
+  }
+  // Update tiers
+  current.tiers = {};
+  document.querySelectorAll('.tier-model').forEach(function(sel) {
+    var tier = parseInt(sel.dataset.tier);
+    var desc = document.querySelector('.tier-desc[data-tier="' + tier + '"]');
+    current.tiers[tier] = { model: sel.value, description: desc ? desc.value : '' };
+  });
+  // Update sprites
+  current.sprites = {
+    provider: document.getElementById('sprite-provider').value,
+    model: document.getElementById('sprite-model').value,
+    image_size: document.getElementById('sprite-size').value,
+  };
+  return '# Tier → model mapping.\n'
+    + '# Any litellm-supported model ID can be used. Prefix: openai/, anthropic/, github/, etc.\n'
+    + '# Set TIER1_MODEL / TIER2_MODEL / TIER3_MODEL env vars to override at runtime.\n\n'
+    + jsyaml.dump(current, {lineWidth: -1, sortKeys: false, quotingType: '"', forceQuotes: true});
+}
+
+document.addEventListener('keydown', function(e) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); saveConfig(); }
+});
+
+async function saveConfig() {
+  var btn = document.getElementById('save-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Saving…';
+  var content;
+  if (activeTab === 'tab-raw') {
+    content = window._getYaml ? window._getYaml() : document.getElementById('yaml-raw').value;
+  } else {
+    content = buildYamlFromForm();
+  }
+  var res = await fetch('/edit/config', {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({content: content}),
+  });
+  if (res.ok) {
+    showToast('Config saved', 'success');
+    document.getElementById('save-status').textContent = '✓ Saved';
+  } else {
+    var err = await res.json();
+    showToast(err.detail || 'Save failed', 'error');
+    document.getElementById('save-status').textContent = '✗ Error';
+  }
+  btn.disabled = false;
+  btn.textContent = '💾 Save';
+}
+</script>
+{% endblock %}

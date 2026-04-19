@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}{{ filename }} — Game Studio AI{% endblock %}
+{% block page_title %}Edit Engine: {{ filename }}{% endblock %}
+{% block content %}
+<!-- Breadcrumb -->
+<div class="breadcrumbs text-sm mb-4">
+  <ul>
+    <li><a href="/edit/engines">Engines</a></li>
+    <li>{{ engine.get('name', filename | replace('.yaml','')) }}</li>
+  </ul>
+</div>
+<!-- Summary cards -->
+<div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+  <div class="stat bg-base-200 rounded-lg p-3">
+    <div class="stat-title text-xs">ID</div>
+    <div class="stat-value text-sm">{{ engine.get('id', '—') }}</div>
+  </div>
+  <div class="stat bg-base-200 rounded-lg p-3">
+    <div class="stat-title text-xs">Name</div>
+    <div class="stat-value text-sm">{{ engine.get('name', '—') }}</div>
+  </div>
+  <div class="stat bg-base-200 rounded-lg p-3">
+    <div class="stat-title text-xs">Language</div>
+    <div class="stat-value text-sm">{{ engine.get('script_language', '—') }}</div>
+  </div>
+  <div class="stat bg-base-200 rounded-lg p-3">
+    <div class="stat-title text-xs">Sprite Format</div>
+    <div class="stat-value text-sm">{{ engine.get('sprite_output', {}).get('format', '—') }}</div>
+  </div>
+</div>
+<!-- Quick reference -->
+{% if engine.get('detect_files') %}
+<div class="card bg-base-200 mb-4">
+  <div class="card-body py-3">
+    <div class="flex flex-wrap gap-2 items-center">
+      <span class="text-xs font-bold uppercase tracking-wider opacity-60">Detect files:</span>
+      {% for f in engine.get('detect_files', []) %}
+      <span class="badge badge-outline badge-sm font-mono">{{ f }}</span>
+      {% endfor %}
+      {% if engine.get('conventions') %}
+      <span class="text-xs font-bold uppercase tracking-wider opacity-60 ml-4">Conventions:</span>
+      {% for key, val in engine.get('conventions', {}).items() %}
+      <span class="badge badge-ghost badge-sm">{{ key }}: {{ val }}</span>
+      {% endfor %}
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endif %}
+<!-- YAML Editor -->
+<div class="card bg-base-200 mb-4">
+  <div class="card-body">
+    <h2 class="card-title text-sm uppercase tracking-wider opacity-60 mb-3">YAML Configuration</h2>
+    <div id="yaml-editor" class="border border-base-300 rounded-lg overflow-hidden min-h-[500px]"></div>
+    <textarea id="yaml-raw" class="hidden">{{ raw_content }}</textarea>
+  </div>
+</div>
+<!-- Action bar -->
+<div class="flex justify-between items-center sticky bottom-0 bg-base-100 py-3 border-t border-base-300 -mx-6 px-6">
+  <a href="/edit/engines" class="btn btn-ghost">← Back</a>
+  <div class="flex gap-2 items-center">
+    <span id="save-status" class="text-sm opacity-60"></span>
+    <button class="btn btn-primary" onclick="saveEngine()" id="save-btn">💾 Save</button>
+    <button class="btn btn-error btn-outline" onclick="deleteEngine()">🗑 Delete</button>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script type="module">
+import {initEditor} from '/static/editor-init.js';
+let yamlContent = document.getElementById('yaml-raw').value;
+const editor = initEditor(
+  document.getElementById('yaml-editor'),
+  'yaml',
+  yamlContent,
+  (val) => { yamlContent = val; }
+);
+window._getYaml = () => yamlContent;
+</script>
+<script>
+document.addEventListener('keydown', function(e) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); saveEngine(); }
+});
+async function saveEngine() {
+  var btn = document.getElementById('save-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Saving…';
+  var content = window._getYaml ? window._getYaml() : document.getElementById('yaml-raw').value;
+  var res = await fetch('/edit/engines/{{ filename }}', {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({content: content}),
+  });
+  if (res.ok) {
+    showToast('Engine config saved', 'success');
+    document.getElementById('save-status').textContent = '✓ Saved';
+  } else {
+    var err = await res.json();
+    showToast(err.detail || 'Save failed', 'error');
+    document.getElementById('save-status').textContent = '✗ Error';
+  }
+  btn.disabled = false;
+  btn.textContent = '💾 Save';
+}
+function deleteEngine() {
+  showConfirm('Delete Engine', 'Delete {{ filename }}? This cannot be undone.', async function() {
+    var res = await fetch('/edit/engines/{{ filename }}', {method: 'DELETE'});
+    if (res.ok) {
+      showToast('Engine deleted', 'success');
+      setTimeout(function() { window.location.href = '/edit/engines'; }, 500);
+    } else {
+      var err = await res.json();
+      showToast(err.detail || 'Delete failed', 'error');
+    }
+  });
+}
+</script>
+{% endblock %}

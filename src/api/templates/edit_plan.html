@@ -1,0 +1,265 @@
+{% extends "base.html" %}
+{% block title %}{{ filename }} — Game Studio AI{% endblock %}
+{% block page_title %}Edit Plan: {{ filename }}{% endblock %}
+{% block head_extra %}
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1/Sortable.min.js"></script>
+{% endblock %}
+{% block content %}
+<!-- Breadcrumb -->
+<div class="breadcrumbs text-sm mb-4">
+  <ul>
+    <li><a href="/edit/plans">Plans</a></li>
+    <li>{{ filename | replace('.yaml','') | replace('_',' ') | title }}</li>
+  </ul>
+</div>
+<!-- Metadata -->
+<div class="card bg-base-200 mb-4">
+  <div class="card-body">
+    <h2 class="card-title text-sm uppercase tracking-wider opacity-60 mb-3">Plan Metadata</h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div class="form-control">
+        <label class="label"><span class="label-text">Task</span></label>
+        <input type="text" id="plan-task" class="input input-bordered" value="{{ plan.task }}">
+      </div>
+      <div class="form-control">
+        <label class="label"><span class="label-text">Engine</span></label>
+        <select id="plan-engine" class="select select-bordered">
+          <option value="">— auto-detect —</option>
+          <option value="godot4" {% if plan.engine == 'godot4' %}selected{% endif %}>Godot 4</option>
+          <option value="unity" {% if plan.engine == 'unity' %}selected{% endif %}>Unity</option>
+          <option value="unreal5" {% if plan.engine == 'unreal5' %}selected{% endif %}>Unreal Engine 5</option>
+        </select>
+      </div>
+      <div class="form-control md:col-span-2">
+        <label class="label"><span class="label-text">Description</span></label>
+        <textarea id="plan-description" class="textarea textarea-bordered h-20">{{ plan.description }}</textarea>
+      </div>
+      <div class="form-control md:col-span-2">
+        <label class="label"><span class="label-text">Input</span></label>
+        <textarea id="plan-input" class="textarea textarea-bordered h-20">{{ plan.input }}</textarea>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- Steps builder -->
+<div class="card bg-base-200 mb-4">
+  <div class="card-body">
+    <div class="flex justify-between items-center mb-4">
+      <h2 class="card-title text-sm uppercase tracking-wider opacity-60">Pipeline Steps</h2>
+      <button class="btn btn-sm btn-primary" onclick="addStep()">+ Add Step</button>
+    </div>
+    <div id="steps-container">
+      {% for step in plan.steps %}
+      <div class="step-card card bg-base-300 mb-3 shadow-sm">
+        <div class="card-body p-4">
+          <div class="flex items-center gap-2 mb-3">
+            <span class="drag-handle cursor-grab text-base-content/40 hover:text-base-content text-lg">⠿</span>
+            <span class="badge badge-primary step-badge">Step {{ loop.index }}</span>
+            <div class="flex-1"></div>
+            <button class="btn btn-ghost btn-xs text-error" onclick="removeStep(this)">✕</button>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div class="form-control">
+              <label class="label py-0"><span class="label-text text-xs">ID</span></label>
+              <input type="text" class="input input-bordered input-sm step-id" value="{{ step.id }}">
+            </div>
+            <div class="form-control">
+              <label class="label py-0"><span class="label-text text-xs">Agent</span></label>
+              <select class="select select-bordered select-sm step-agent" onchange="autoFillTier(this)">
+                {% for a in agents_list %}
+                <option value="{{ a.file | replace('.md','') }}"
+                  data-tier="{{ a.tier | replace('tier','') }}"
+                  {% if step.agent == a.file | replace('.md','') %}selected{% endif %}>
+                  {{ a.file | replace('.md','') | replace('_',' ') | title }}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="form-control">
+              <label class="label py-0"><span class="label-text text-xs">Tier</span></label>
+              <input type="number" class="input input-bordered input-sm step-tier" value="{{ step.tier }}" min="1" max="3">
+            </div>
+            <div class="form-control md:col-span-3">
+              <label class="label py-0"><span class="label-text text-xs">Action</span></label>
+              <textarea class="textarea textarea-bordered textarea-sm step-action" rows="3">{{ step.action }}</textarea>
+            </div>
+            <div class="form-control">
+              <label class="label py-0"><span class="label-text text-xs">Gate</span></label>
+              <select class="select select-bordered select-sm step-gate">
+                {% for g in gate_options %}
+                <option value="{{ g }}" {% if step.gate == g %}selected{% endif %}>{{ g }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="form-control">
+              <label class="label py-0"><span class="label-text text-xs">Depends On</span></label>
+              <input type="text" class="input input-bordered input-sm step-depends"
+                value="{{ step.depends_on | join(', ') if step.depends_on else '' }}"
+                placeholder="step_id1, step_id2">
+            </div>
+            <div class="form-control">
+              <label class="label py-0"><span class="label-text text-xs">Validate As</span></label>
+              <select class="select select-bordered select-sm step-validate">
+                <option value="">— None —</option>
+                {% for s in schema_types %}
+                <option value="{{ s }}" {% if step.validate_as == s %}selected{% endif %}>{{ s }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+<!-- Action bar -->
+<div class="flex justify-between items-center sticky bottom-0 bg-base-100 py-3 border-t border-base-300 -mx-6 px-6">
+  <a href="/edit/plans" class="btn btn-ghost">← Back</a>
+  <div class="flex gap-2 items-center">
+    <span id="save-status" class="text-sm opacity-60"></span>
+    <button class="btn btn-primary" onclick="savePlan()" id="save-btn">💾 Save</button>
+    <button class="btn btn-error btn-outline" onclick="deletePlan()">🗑 Delete</button>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+// SortableJS drag-and-drop
+new Sortable(document.getElementById('steps-container'), {
+  handle: '.drag-handle',
+  animation: 150,
+  ghostClass: 'opacity-30',
+  onEnd: renumberSteps,
+});
+
+function autoFillTier(select) {
+  var opt = select.selectedOptions[0];
+  var tier = opt ? opt.dataset.tier : null;
+  if (tier) select.closest('.step-card').querySelector('.step-tier').value = tier;
+}
+
+function renumberSteps() {
+  document.querySelectorAll('.step-card').forEach(function(card, i) {
+    card.querySelector('.step-badge').textContent = 'Step ' + (i + 1);
+  });
+}
+
+function addStep() {
+  var container = document.getElementById('steps-container');
+  var index = container.children.length;
+  var card = document.createElement('div');
+  card.className = 'step-card card bg-base-300 mb-3 shadow-sm';
+  card.innerHTML = '<div class="card-body p-4">'
+    + '<div class="flex items-center gap-2 mb-3">'
+    + '<span class="drag-handle cursor-grab text-base-content/40 hover:text-base-content text-lg">⠿</span>'
+    + '<span class="badge badge-primary step-badge">Step ' + (index + 1) + '</span>'
+    + '<div class="flex-1"></div>'
+    + '<button class="btn btn-ghost btn-xs text-error" onclick="removeStep(this)">✕</button>'
+    + '</div>'
+    + '<div class="grid grid-cols-1 md:grid-cols-3 gap-3">'
+    + '<div class="form-control"><label class="label py-0"><span class="label-text text-xs">ID</span></label>'
+    + '<input type="text" class="input input-bordered input-sm step-id" value="step_' + (index + 1) + '"></div>'
+    + '<div class="form-control"><label class="label py-0"><span class="label-text text-xs">Agent</span></label>'
+    + '<select class="select select-bordered select-sm step-agent" onchange="autoFillTier(this)">' + getAgentOptions() + '</select></div>'
+    + '<div class="form-control"><label class="label py-0"><span class="label-text text-xs">Tier</span></label>'
+    + '<input type="number" class="input input-bordered input-sm step-tier" value="3" min="1" max="3"></div>'
+    + '<div class="form-control md:col-span-3"><label class="label py-0"><span class="label-text text-xs">Action</span></label>'
+    + '<textarea class="textarea textarea-bordered textarea-sm step-action" rows="3"></textarea></div>'
+    + '<div class="form-control"><label class="label py-0"><span class="label-text text-xs">Gate</span></label>'
+    + '<select class="select select-bordered select-sm step-gate">' + getGateOptions() + '</select></div>'
+    + '<div class="form-control"><label class="label py-0"><span class="label-text text-xs">Depends On</span></label>'
+    + '<input type="text" class="input input-bordered input-sm step-depends" placeholder="step_id1, step_id2"></div>'
+    + '<div class="form-control"><label class="label py-0"><span class="label-text text-xs">Validate As</span></label>'
+    + '<select class="select select-bordered select-sm step-validate"><option value="">— None —</option>' + getSchemaOptions() + '</select></div>'
+    + '</div></div>';
+  container.appendChild(card);
+}
+
+function removeStep(btn) {
+  btn.closest('.step-card').remove();
+  renumberSteps();
+}
+
+function getAgentOptions() {
+  var agents = {{ agents_list | tojson }};
+  return agents.map(function(a) {
+    var name = a.file.replace('.md','');
+    return '<option value="' + name + '" data-tier="' + a.tier.replace('tier','') + '">'
+      + name.replace(/_/g,' ') + '</option>';
+  }).join('');
+}
+
+function getGateOptions() {
+  var gates = {{ gate_options | tojson }};
+  return gates.map(function(g) { return '<option value="' + g + '">' + g + '</option>'; }).join('');
+}
+
+function getSchemaOptions() {
+  var schemas = {{ schema_types | tojson }};
+  return schemas.map(function(s) { return '<option value="' + s + '">' + s + '</option>'; }).join('');
+}
+
+function collectSteps() {
+  var steps = [];
+  document.querySelectorAll('.step-card').forEach(function(card) {
+    var depends = card.querySelector('.step-depends').value.trim();
+    steps.push({
+      id: card.querySelector('.step-id').value.trim(),
+      agent: card.querySelector('.step-agent').value,
+      tier: parseInt(card.querySelector('.step-tier').value),
+      action: card.querySelector('.step-action').value.trim(),
+      gate: card.querySelector('.step-gate').value,
+      depends_on: depends ? depends.split(',').map(function(s){return s.trim();}).filter(Boolean) : [],
+      validate_as: card.querySelector('.step-validate').value || null,
+    });
+  });
+  return steps;
+}
+
+document.addEventListener('keydown', function(e) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); savePlan(); }
+});
+
+async function savePlan() {
+  var btn = document.getElementById('save-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Saving…';
+  var body = {
+    task: document.getElementById('plan-task').value.trim(),
+    description: document.getElementById('plan-description').value.trim(),
+    engine: document.getElementById('plan-engine').value || null,
+    input_text: document.getElementById('plan-input').value.trim(),
+    steps: collectSteps(),
+  };
+  var res = await fetch('/edit/plans/{{ filename }}', {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body),
+  });
+  if (res.ok) {
+    showToast('Plan saved', 'success');
+    document.getElementById('save-status').textContent = '✓ Saved';
+  } else {
+    var err = await res.json();
+    showToast(err.detail || 'Save failed', 'error');
+    document.getElementById('save-status').textContent = '✗ Error';
+  }
+  btn.disabled = false;
+  btn.textContent = '💾 Save';
+}
+
+function deletePlan() {
+  showConfirm('Delete Plan', 'Delete {{ filename }}? This cannot be undone.', async function() {
+    var res = await fetch('/edit/plans/{{ filename }}', {method: 'DELETE'});
+    if (res.ok) {
+      showToast('Plan deleted', 'success');
+      setTimeout(function() { window.location.href = '/edit/plans'; }, 500);
+    } else {
+      var err = await res.json();
+      showToast(err.detail || 'Delete failed', 'error');
+    }
+  });
+}
+</script>
+{% endblock %}
