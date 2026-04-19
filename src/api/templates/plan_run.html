@@ -16,7 +16,7 @@
     {% set completed_ids = steps | map(attribute='step_id') | list %}
     {% for step in plan_steps %}
     <div class="p-2 pl-3 border-l-[3px] mb-1 text-sm {% if step.id in completed_ids %}border-success text-success{% elif loop.first %}border-info text-info{% else %}border-base-300 text-base-content/30{% endif %}" id="step-{{ step.id }}">
-      {% if step.id in completed_ids %}✅{% else %}⏸{% endif %}
+      {% if step.id in completed_ids %}<svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>{% else %}<svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 inline opacity-40" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>{% endif %}
       <strong>{{ step.id }}</strong><br>
       <span class="text-xs opacity-60">{{ step.agent }} · tier {{ step.tier }}</span>
     </div>
@@ -35,7 +35,7 @@
         <strong class="text-primary">▶ {{ step.agent_name }} ({{ step.step_id }})</strong><br>
         {{ step.output[:600] }}{% if step.output|length > 600 %}…{% endif %}
         {% if not step.gate_approved %}
-        <br><span class="text-error">✋ Rejected: {{ step.gate_feedback }}</span>
+        <br><span class="text-error">Rejected: {{ step.gate_feedback }}</span>
         {% endif %}
       </div>
       {% endfor %}
@@ -47,8 +47,14 @@
         <div class="flex flex-col gap-3 mt-3">
           <textarea id="gate-feedback" rows="2" class="textarea textarea-bordered" placeholder="Optional feedback for the agent..."></textarea>
           <div class="flex gap-3">
-            <button class="btn btn-success btn-sm" onclick="sendGate(true)">✅ Approve</button>
-            <button class="btn btn-error btn-sm" onclick="sendGate(false)">✋ Reject</button>
+            <button class="btn btn-success btn-sm" onclick="sendGate(true)">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              Approve
+            </button>
+            <button class="btn btn-error btn-sm" onclick="sendGate(false)">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
+              Reject
+            </button>
           </div>
         </div>
       </div>

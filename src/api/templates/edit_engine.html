@@ -61,8 +61,14 @@
   <a href="/edit/engines" class="btn btn-ghost">← Back</a>
   <div class="flex gap-2 items-center">
     <span id="save-status" class="text-sm opacity-60"></span>
-    <button class="btn btn-primary" onclick="saveEngine()" id="save-btn">💾 Save</button>
-    <button class="btn btn-error btn-outline" onclick="deleteEngine()">🗑 Delete</button>
+    <button class="btn btn-primary" onclick="saveEngine()" id="save-btn">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg>
+      Save
+    </button>
+    <button class="btn btn-error btn-outline" onclick="deleteEngine()">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+      Delete
+    </button>
   </div>
 </div>
 {% endblock %}
@@ -91,7 +97,7 @@ document.addEventListener('keydown', function(e) {
 async function saveEngine() {
   var btn = document.getElementById('save-btn');
   btn.disabled = true;
-  btn.textContent = '⏳ Saving…';
+  btn.innerHTML = 'Saving…';
   var content = window._getYaml ? window._getYaml() : document.getElementById('yaml-raw').value;
   var res = await fetch('/edit/engines/{{ filename }}', {
     method: 'PUT',
@@ -107,7 +113,7 @@ async function saveEngine() {
     document.getElementById('save-status').textContent = '✗ Error';
   }
   btn.disabled = false;
-  btn.textContent = '💾 Save';
+  btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg> Save';
 }
 function deleteEngine() {
   showConfirm('Delete Engine', 'Delete {{ filename }}? This cannot be undone.', async function() {

@@ -11,7 +11,7 @@
   <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
   <div>
     <h3 class="font-bold">Configuration needed</h3>
-    <p class="text-sm">No model configuration found. Set the tier models below and save, or switch to the Full YAML tab to paste a complete configuration.</p>
+    <p class="text-sm">No model configuration found. Set the tier models below and save.</p>
   </div>
 </div>
 {% endif %}
@@ -23,7 +23,6 @@
   <a role="tab" class="tab" onclick="switchTab(event, 'tab-providers')">Providers</a>
   <a role="tab" class="tab" onclick="switchTab(event, 'tab-keys')">API Keys</a>
   <a role="tab" class="tab" onclick="switchTab(event, 'tab-project')">Project</a>
-  <a role="tab" class="tab" onclick="switchTab(event, 'tab-raw')">Full YAML</a>
 </div>
 
 <!-- Tab: Tiers -->
@@ -155,7 +154,7 @@
       {% else %}
       <div class="alert alert-info">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-        <span class="text-sm">No providers configured. Switch to the Full YAML tab to add provider definitions, or type model IDs directly in the Tiers tab.</span>
+        <span class="text-sm">No providers configured. Type model IDs directly in the Tiers tab.</span>
       </div>
       {% endif %}
     </div>
@@ -203,11 +202,14 @@
       </div>
       {% else %}
       <div class="alert alert-info">
-        <span class="text-sm">No providers in config. Add providers in the Full YAML tab first, then return here to set their keys.</span>
+        <span class="text-sm">No providers in config. Add providers to <code class="font-mono text-xs">config/models.yaml</code> first, then return here to set their keys.</span>
       </div>
       {% endif %}
       <div class="flex items-center gap-3 mt-4">
-        <button class="btn btn-primary btn-sm" onclick="saveKeys()">💾 Save Keys</button>
+        <button class="btn btn-primary btn-sm" onclick="saveKeys()">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg>
+          Save Keys
+        </button>
         <span id="keys-status" class="text-sm opacity-60"></span>
       </div>
     </div>
@@ -227,7 +229,10 @@
           <label class="label"><span class="label-text-alt opacity-50">Leave empty to use the current working directory</span></label>
         </div>
         <div class="flex items-center gap-3 mt-2">
-          <button class="btn btn-primary btn-sm" onclick="saveProject()">💾 Save</button>
+          <button class="btn btn-primary btn-sm" onclick="saveProject()">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg>
+            Save
+          </button>
           <span id="project-status" class="text-sm opacity-60"></span>
         </div>
       </div>
@@ -259,46 +264,22 @@
   </div>
 </div>
 
-<!-- Tab: Raw YAML -->
-<div id="tab-raw" class="cfg-panel hidden">
-  <div class="card bg-base-200 mb-4">
-    <div class="card-body">
-      <h2 class="card-title text-sm uppercase tracking-wider opacity-60 mb-3">Raw YAML Editor</h2>
-      <p class="text-xs opacity-50 mb-3">Edit the full models.yaml directly. Changes here override the structured tabs. This is where you add providers, engine_overrides, and advanced settings.</p>
-      <div id="yaml-editor" class="border border-base-300 rounded-lg overflow-hidden min-h-[500px]"></div>
-      <textarea id="yaml-raw" class="textarea textarea-bordered w-full min-h-[500px] font-mono text-sm mt-2">{{ config.raw }}</textarea>
-    </div>
-  </div>
-</div>
+<!-- Hidden raw YAML used as base for form serialisation -->
+<textarea id="yaml-raw" class="hidden">{{ config.raw }}</textarea>
 
 <!-- Action bar -->
 <div class="flex justify-between items-center sticky bottom-0 bg-base-100 py-3 border-t border-base-300 -mx-6 px-6">
   <a href="/" class="btn btn-ghost">← Dashboard</a>
   <div class="flex gap-2 items-center">
     <span id="save-status" class="text-sm opacity-60"></span>
-    <button class="btn btn-primary" onclick="saveConfig()" id="save-btn">💾 Save</button>
+    <button class="btn btn-primary" onclick="saveConfig()" id="save-btn">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg>
+      Save
+    </button>
   </div>
 </div>
 {% endblock %}
 {% block scripts %}
-<script type="module">
-try {
-  const {initEditor, getContent} = await import('/static/editor-init.js');
-  let yamlContent = document.getElementById('yaml-raw').value;
-  const editor = initEditor(
-    document.getElementById('yaml-editor'),
-    'yaml',
-    yamlContent,
-    (val) => { yamlContent = val; }
-  );
-  window._getYaml = () => yamlContent;
-  window._cmEditor = editor;
-  document.getElementById('yaml-raw').style.display = 'none';
-} catch(e) {
-  console.warn('CodeMirror unavailable, using plain textarea:', e);
-  document.getElementById('yaml-editor').style.display = 'none';
-}
-</script>
 <script>
 var activeTab = 'tab-tiers';
 
@@ -324,7 +305,7 @@ function switchTabByName(evt, tabId) {
 function buildYamlFromForm() {
   var current;
   try {
-    current = jsyaml.load(window._getYaml ? window._getYaml() : document.getElementById('yaml-raw').value) || {};
+    current = jsyaml.load(document.getElementById('yaml-raw').value) || {};
   } catch(e) {
     current = {};
   }
@@ -358,13 +339,8 @@ document.addEventListener('keydown', function(e) {
 async function saveConfig() {
   var btn = document.getElementById('save-btn');
   btn.disabled = true;
-  btn.textContent = '⏳ Saving…';
-  var content;
-  if (activeTab === 'tab-raw') {
-    content = window._getYaml ? window._getYaml() : document.getElementById('yaml-raw').value;
-  } else {
-    content = buildYamlFromForm();
-  }
+  btn.innerHTML = 'Saving…';
+  var content = buildYamlFromForm();
   var res = await fetch('/edit/config', {
     method: 'PUT',
     headers: {'Content-Type': 'application/json'},
@@ -379,12 +355,12 @@ async function saveConfig() {
     document.getElementById('save-status').textContent = '✗ Error';
   }
   btn.disabled = false;
-  btn.textContent = '💾 Save';
+  btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg> Save';
 }
 
 async function saveKeys() {
   var status = document.getElementById('keys-status');
-  status.textContent = '⏳ Saving…';
+  status.textContent = 'Saving…';
   var keys = {};
   document.querySelectorAll('.api-key-input').forEach(function(el) {
     var k = el.dataset.envKey;
@@ -413,9 +389,9 @@ async function saveKeys() {
 
 async function saveProject() {
   var status = document.getElementById('project-status');
-  status.textContent = '⏳ Saving…';
+  status.textContent = 'Saving…';
   var projectPath = document.getElementById('project-path').value.trim();
-  var content = window._getYaml ? window._getYaml() : document.getElementById('yaml-raw').value;
+  var content = buildYamlFromForm();
   var res = await fetch('/edit/config', {
     method: 'PUT',
     headers: {'Content-Type': 'application/json'},
