@@ -54,7 +54,10 @@
           <textarea name="input_text" rows="3" class="textarea textarea-bordered" placeholder="Describe the feature, level, or task..."></textarea>
           <label class="label"><span class="label-text-alt opacity-50">Free-form description passed to the first agent in the pipeline</span></label>
         </div>
-        <button class="btn btn-primary" type="submit" {% if setup_needed or no_active_providers %}disabled{% endif %}>&#9654; Run</button>
+        <button class="btn btn-primary" type="submit" {% if setup_needed or no_active_providers %}disabled{% endif %}>
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+          Run
+        </button>
       </form>
       <div id="run-result" class="mt-3"></div>
     </div>
