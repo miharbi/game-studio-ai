@@ -51,8 +51,9 @@
 <div class="card bg-base-200 mb-4">
   <div class="card-body">
     <h2 class="card-title text-sm uppercase tracking-wider opacity-60 mb-3">YAML Configuration</h2>
+    <p class="text-xs opacity-50 mb-3">Define engine detection patterns, script language, file extensions, conventions, asset paths, and sprite output format.</p>
     <div id="yaml-editor" class="border border-base-300 rounded-lg overflow-hidden min-h-[500px]"></div>
-    <textarea id="yaml-raw" class="hidden">{{ raw_content }}</textarea>
+    <textarea id="yaml-raw" class="textarea textarea-bordered w-full min-h-[500px] font-mono text-sm mt-2">{{ raw_content }}</textarea>
   </div>
 </div>
 <!-- Action bar -->
@@ -67,15 +68,21 @@
 {% endblock %}
 {% block scripts %}
 <script type="module">
-import {initEditor} from '/static/editor-init.js';
-let yamlContent = document.getElementById('yaml-raw').value;
-const editor = initEditor(
-  document.getElementById('yaml-editor'),
-  'yaml',
-  yamlContent,
-  (val) => { yamlContent = val; }
-);
-window._getYaml = () => yamlContent;
+try {
+  const {initEditor} = await import('/static/editor-init.js');
+  let yamlContent = document.getElementById('yaml-raw').value;
+  const editor = initEditor(
+    document.getElementById('yaml-editor'),
+    'yaml',
+    yamlContent,
+    (val) => { yamlContent = val; }
+  );
+  window._getYaml = () => yamlContent;
+  document.getElementById('yaml-raw').style.display = 'none';
+} catch(e) {
+  console.warn('CodeMirror unavailable, using plain textarea:', e);
+  document.getElementById('yaml-editor').style.display = 'none';
+}
 </script>
 <script>
 document.addEventListener('keydown', function(e) {

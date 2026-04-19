@@ -57,12 +57,20 @@ def _parse_plan(content: str) -> dict[str, Any]:
 
 
 def _parse_config(content: str) -> dict[str, Any]:
-    """Parse models.yaml into structured sections."""
-    data = yaml.safe_load(content) or {}
+    """Parse models.yaml into structured sections with sensible defaults."""
+    data = (yaml.safe_load(content) or {}) if content.strip() else {}
+    tiers = data.get("tiers", {})
+    # Ensure all 3 tiers have entries even if config is empty
+    for t in (1, 2, 3):
+        if t not in tiers:
+            tiers[t] = {"model": "", "description": ""}
+    sprites = data.get("sprites", {})
+    if not sprites:
+        sprites = {"provider": "stub", "model": "dall-e-3", "image_size": "1024x1024"}
     return {
-        "tiers": data.get("tiers", {}),
+        "tiers": tiers,
         "engine_overrides": data.get("engine_overrides", {}),
-        "sprites": data.get("sprites", {}),
+        "sprites": sprites,
         "providers": data.get("providers", {}),
         "raw": content,
     }
@@ -334,10 +342,18 @@ async def config_edit(request: Request) -> HTMLResponse:
     path = _CONFIG_DIR / "models.yaml"
     content = path.read_text() if path.exists() else ""
     config = _parse_config(content)
+    # Detect if config is missing or has no tier models set
+    is_new = not path.exists() or not any(
+        config["tiers"].get(t, {}).get("model") for t in (1, 2, 3)
+    )
     templates = request.app.state.templates
     return templates.TemplateResponse(
         request=request, name="edit_config.html",
-        context={"config": config, "all_models": _list_all_models()},
+        context={
+            "config": config,
+            "all_models": _list_all_models(),
+            "is_new_config": is_new,
+        },
     )
 
 

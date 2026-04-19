@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}Settings — Game Studio AI{% endblock %}
+{% block page_title %}Settings{% endblock %}
+{% block content %}
+
+<div class="max-w-2xl">
+  <!-- Project path -->
+  <div class="card bg-base-200 mb-6">
+    <div class="card-body">
+      <h2 class="card-title text-sm uppercase tracking-wider opacity-60 mb-2">Project Path</h2>
+      <p class="text-xs opacity-50 mb-4">Point this to the root of your game project. Used for engine auto-detection, file output, and to give agents project-specific context. This does <strong>not</strong> need to be the same folder where Game Studio AI is installed.</p>
+      <div class="form-control">
+        <label class="label"><span class="label-text">Absolute path to game project</span></label>
+        <input type="text" id="project-path" class="input input-bordered font-mono" value="{{ settings.project_path }}" placeholder="/home/user/my-game-project">
+        <label class="label"><span class="label-text-alt opacity-50">Leave empty to use the current working directory</span></label>
+      </div>
+      <div class="flex items-center gap-3 mt-2">
+        <button class="btn btn-primary btn-sm" onclick="saveSettings()">💾 Save</button>
+        <span id="save-status" class="text-sm opacity-60"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Engine detection -->
+  <div class="card bg-base-200 mb-6">
+    <div class="card-body">
+      <h2 class="card-title text-sm uppercase tracking-wider opacity-60 mb-2">Engine Detection</h2>
+      <p class="text-xs opacity-50 mb-4">Automatically detects the game engine based on project files (e.g. <code>project.godot</code>, <code>ProjectSettings.asset</code>). Save the project path above to trigger detection.</p>
+      <div id="detection-result">
+        {% if detected_engine %}
+        <div class="alert alert-success">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          <div>
+            <span class="font-bold">{{ detected_engine.name }}</span> detected
+            <span class="text-xs opacity-60 ml-2">(matched <code>{{ detected_engine.matched }}</code>)</span>
+          </div>
+        </div>
+        {% elif settings.project_path %}
+        <div class="alert alert-warning">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+          <span>No engine detected at <code class="text-xs">{{ settings.project_path }}</code>. You can still select an engine manually when running a plan.</span>
+        </div>
+        {% else %}
+        <p class="opacity-40 text-sm">Set a project path above to auto-detect your game engine.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script>
+document.addEventListener('keydown', function(e) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); saveSettings(); }
+});
+
+async function saveSettings() {
+  var status = document.getElementById('save-status');
+  status.textContent = '⏳ Saving…';
+  var body = { project_path: document.getElementById('project-path').value };
+  try {
+    var res = await fetch('/settings', {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body),
+    });
+    if (res.ok) {
+      var data = await res.json();
+      showToast('Settings saved', 'success');
+      status.textContent = '✓ Saved';
+      // Update detection display
+      var result = document.getElementById('detection-result');
+      if (data.detected_engine) {
+        result.innerHTML = '<div class="alert alert-success">'
+          + '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>'
+          + '<div><span class="font-bold">' + data.detected_engine.name + '</span> detected'
+          + ' <span class="text-xs opacity-60 ml-2">(matched <code>' + data.detected_engine.matched + '</code>)</span></div>'
+          + '</div>';
+      } else if (body.project_path) {
+        result.innerHTML = '<div class="alert alert-warning">'
+          + '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>'
+          + '<span>No engine detected. You can still select an engine manually when running a plan.</span>'
+          + '</div>';
+      } else {
+        result.innerHTML = '<p class="opacity-40 text-sm">Set a project path above to auto-detect your game engine.</p>';
+      }
+    } else {
+      var err = await res.json();
+      showToast(err.detail || 'Save failed', 'error');
+      status.textContent = '✗ Error';
+    }
+  } catch(e) {
+    showToast('Network error', 'error');
+    status.textContent = '✗ Error';
+  }
+}
+</script>
+{% endblock %}

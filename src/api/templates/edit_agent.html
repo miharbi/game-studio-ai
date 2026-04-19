@@ -18,6 +18,7 @@
       <div class="form-control">
         <label class="label"><span class="label-text">Name</span></label>
         <input type="text" id="agent-name" class="input input-bordered" value="{{ agent.name }}">
+        <label class="label"><span class="label-text-alt opacity-50">Unique snake_case identifier for this agent</span></label>
       </div>
       <div class="form-control">
         <label class="label"><span class="label-text">Tier</span></label>
@@ -26,6 +27,7 @@
           <option value="2" {% if agent.tier == 2 %}selected{% endif %}>2 — Leads</option>
           <option value="3" {% if agent.tier == 3 %}selected{% endif %}>3 — Specialists</option>
         </select>
+        <label class="label"><span class="label-text-alt opacity-50">Determines which LLM model tier is used (quality vs cost)</span></label>
       </div>
       <div class="form-control">
         <label class="label"><span class="label-text">Reports To</span></label>
@@ -38,19 +40,26 @@
           </option>
           {% endfor %}
         </select>
+        <label class="label"><span class="label-text-alt opacity-50">Parent agent in the reporting hierarchy</span></label>
       </div>
       <div class="form-control">
         <label class="label"><span class="label-text">Domain</span></label>
         <input type="text" id="agent-domain" class="input input-bordered" value="{{ agent.domain }}">
+        <label class="label"><span class="label-text-alt opacity-50">Area of expertise, e.g. "art direction", "network code"</span></label>
       </div>
       <div class="form-control md:col-span-2">
         <label class="label"><span class="label-text">Model Override</span></label>
+        {% if models_list %}
         <select id="agent-model" class="select select-bordered">
           <option value="">— Use tier default —</option>
           {% for m in models_list %}
           <option value="{{ m }}" {% if agent.get('model_override') == m %}selected{% endif %}>{{ m }}</option>
           {% endfor %}
         </select>
+        {% else %}
+        <input type="text" id="agent-model" class="input input-bordered" value="{{ agent.get('model_override', '') }}" placeholder="e.g. openai/gpt-4o">
+        {% endif %}
+        <label class="label"><span class="label-text-alt opacity-50">Leave blank to use the tier default. Any litellm model ID (prefix: openai/, anthropic/, etc.)</span></label>
       </div>
     </div>
   </div>
@@ -59,8 +68,9 @@
 <div class="card bg-base-200 mb-4">
   <div class="card-body">
     <h2 class="card-title text-sm uppercase tracking-wider opacity-60 mb-3">Agent Instructions (Markdown)</h2>
+    <p class="text-xs opacity-50 mb-3">This markdown content is sent as the system prompt when the agent is invoked by a plan step.</p>
     <div id="body-editor" class="border border-base-300 rounded-lg overflow-hidden min-h-[400px]"></div>
-    <textarea id="body-raw" class="hidden">{{ agent.body }}</textarea>
+    <textarea id="body-raw" class="textarea textarea-bordered w-full min-h-[400px] font-mono text-sm mt-2">{{ agent.body }}</textarea>
   </div>
 </div>
 <!-- Action bar -->
@@ -75,15 +85,23 @@
 {% endblock %}
 {% block scripts %}
 <script type="module">
-import {initEditor} from '/static/editor-init.js';
-let bodyContent = document.getElementById('body-raw').value;
-const editor = initEditor(
-  document.getElementById('body-editor'),
-  'markdown',
-  bodyContent,
-  (val) => { bodyContent = val; }
-);
-window._getBody = () => bodyContent;
+try {
+  const {initEditor} = await import('/static/editor-init.js');
+  let bodyContent = document.getElementById('body-raw').value;
+  const editor = initEditor(
+    document.getElementById('body-editor'),
+    'markdown',
+    bodyContent,
+    (val) => { bodyContent = val; }
+  );
+  window._getBody = () => bodyContent;
+  // Hide fallback textarea, show CodeMirror
+  document.getElementById('body-raw').style.display = 'none';
+} catch(e) {
+  // CodeMirror failed to load — hide the empty CM container, keep textarea visible
+  console.warn('CodeMirror unavailable, using plain textarea:', e);
+  document.getElementById('body-editor').style.display = 'none';
+}
 </script>
 <script>
 document.addEventListener('keydown', (e) => {
@@ -93,12 +111,14 @@ async function saveAgent() {
   const btn = document.getElementById('save-btn');
   btn.disabled = true;
   btn.textContent = '⏳ Saving…';
+  var modelEl = document.getElementById('agent-model');
+  var modelVal = modelEl.tagName === 'SELECT' ? modelEl.value : modelEl.value.trim();
   const body = {
     name: document.getElementById('agent-name').value,
     tier: parseInt(document.getElementById('agent-tier').value),
     reports_to: document.getElementById('agent-reports-to').value || null,
     domain: document.getElementById('agent-domain').value,
-    model_override: document.getElementById('agent-model').value || null,
+    model_override: modelVal || null,
     body: window._getBody ? window._getBody() : document.getElementById('body-raw').value,
   };
   const res = await fetch('/edit/agents/{{ tier }}/{{ filename }}', {

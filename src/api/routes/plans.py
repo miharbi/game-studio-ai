@@ -39,10 +39,35 @@ async def dashboard(request: Request) -> HTMLResponse:
     runs = db.list_runs()
     templates = request.app.state.templates
     plans = sorted((_PLANS_DIR / "templates").glob("*.yaml"))
+
+    # Detect if config is missing or incomplete
+    config_path = Path(__file__).resolve().parents[3] / "config" / "models.yaml"
+    setup_needed = False
+    setup_reason = ""
+    if not config_path.exists():
+        setup_needed = True
+        setup_reason = "No model configuration file found."
+    else:
+        import yaml
+        try:
+            data = yaml.safe_load(config_path.read_text()) or {}
+            tiers = data.get("tiers", {})
+            if not any(tiers.get(t, {}).get("model") for t in (1, 2, 3)):
+                setup_needed = True
+                setup_reason = "No tier models configured yet."
+        except Exception:
+            setup_needed = True
+            setup_reason = "Model configuration file is invalid."
+
     return templates.TemplateResponse(
         request=request,
         name="dashboard.html",
-        context={"runs": runs, "plans": [p.name for p in plans]},
+        context={
+            "runs": runs,
+            "plans": [p.name for p in plans],
+            "setup_needed": setup_needed,
+            "setup_reason": setup_reason,
+        },
     )
 
 

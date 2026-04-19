@@ -5,6 +5,17 @@
 <script src="https://cdn.jsdelivr.net/npm/js-yaml@4/dist/js-yaml.min.js"></script>
 {% endblock %}
 {% block content %}
+
+{% if is_new_config %}
+<div class="alert alert-warning mb-6">
+  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+  <div>
+    <h3 class="font-bold">Configuration needed</h3>
+    <p class="text-sm">No model configuration found. Set the tier models below and save, or switch to the Full YAML tab to paste a complete configuration.</p>
+  </div>
+</div>
+{% endif %}
+
 <!-- Tabs -->
 <div role="tablist" class="tabs tabs-bordered mb-6">
   <a role="tab" class="tab tab-active" onclick="switchTab(event, 'tab-tiers')">Tiers</a>
@@ -14,29 +25,42 @@
 </div>
 
 <!-- Tab: Tiers -->
-<div id="tab-tiers" class="tab-content">
+<div id="tab-tiers" class="cfg-panel">
   <div class="card bg-base-200 mb-4">
     <div class="card-body">
-      <h2 class="card-title text-sm uppercase tracking-wider opacity-60 mb-4">Tier → Model Assignment</h2>
+      <h2 class="card-title text-sm uppercase tracking-wider opacity-60 mb-2">Tier → Model Assignment</h2>
+      <p class="text-xs opacity-50 mb-4">Each tier uses a different LLM model. Tier 1 (Directors) should use the highest-quality model; Tier 3 (Specialists) can use a faster, cheaper one. You can override per-agent in the agent editor.</p>
+      {% if not all_models %}
+      <div class="alert alert-info mb-4">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        <span class="text-sm">No provider models loaded yet. Type a <a href="https://docs.litellm.ai/docs/providers" target="_blank" class="link">litellm model ID</a> directly (e.g. <code class="font-mono text-xs">openai/gpt-4o</code>, <code class="font-mono text-xs">anthropic/claude-sonnet-4-20250514</code>), or add providers in the Full YAML tab.</span>
+      </div>
+      {% endif %}
       {% for tier_num in [1, 2, 3] %}
       {% set tier = config.tiers.get(tier_num, {}) %}
-      <div class="flex flex-col md:flex-row gap-4 items-start md:items-end mb-4 pb-4 {% if not loop.last %}border-b border-base-300{% endif %}">
-        <div class="form-control w-full md:w-1/4">
-          <label class="label"><span class="label-text font-bold">Tier {{ tier_num }}
-            {% if tier_num == 1 %}— Directors{% elif tier_num == 2 %}— Leads{% else %}— Specialists{% endif %}
-          </span></label>
+      <div class="grid grid-cols-1 md:grid-cols-[140px_1fr_1fr] gap-3 items-center mb-4 pb-4 {% if not loop.last %}border-b border-base-300{% endif %}">
+        <div class="font-bold text-sm">
+          Tier {{ tier_num }}
+          <div class="text-xs font-normal opacity-50">
+            {% if tier_num == 1 %}Directors{% elif tier_num == 2 %}Leads{% else %}Specialists{% endif %}
+          </div>
         </div>
-        <div class="form-control w-full md:w-2/5">
-          <label class="label"><span class="label-text text-xs">Model</span></label>
-          <select class="select select-bordered tier-model" data-tier="{{ tier_num }}">
+        <div class="form-control">
+          {% if all_models %}
+          <select class="select select-bordered select-sm tier-model" data-tier="{{ tier_num }}">
             {% for m in all_models %}
             <option value="{{ m }}" {% if tier.get('model') == m %}selected{% endif %}>{{ m }}</option>
             {% endfor %}
           </select>
+          <label class="label py-0"><span class="label-text-alt opacity-50">Provider/Model</span></label>
+          {% else %}
+          <input type="text" class="input input-bordered input-sm tier-model" data-tier="{{ tier_num }}" value="{{ tier.get('model', '') }}" placeholder="e.g. openai/gpt-4o">
+          <label class="label py-0"><span class="label-text-alt opacity-50">Provider/Model</span></label>
+          {% endif %}
         </div>
-        <div class="form-control w-full md:w-2/5">
-          <label class="label"><span class="label-text text-xs">Description</span></label>
-          <input type="text" class="input input-bordered tier-desc" data-tier="{{ tier_num }}" value="{{ tier.get('description', '') }}">
+        <div class="form-control">
+          <input type="text" class="input input-bordered input-sm tier-desc" data-tier="{{ tier_num }}" value="{{ tier.get('description', '') }}" placeholder="Optional description">
+          <label class="label py-0"><span class="label-text-alt opacity-50">Short description for this tier</span></label>
         </div>
       </div>
       {% endfor %}
@@ -45,10 +69,11 @@
 </div>
 
 <!-- Tab: Sprites -->
-<div id="tab-sprites" class="tab-content hidden">
+<div id="tab-sprites" class="cfg-panel hidden">
   <div class="card bg-base-200 mb-4">
     <div class="card-body">
-      <h2 class="card-title text-sm uppercase tracking-wider opacity-60 mb-4">Sprite Generation</h2>
+      <h2 class="card-title text-sm uppercase tracking-wider opacity-60 mb-2">Sprite Generation</h2>
+      <p class="text-xs opacity-50 mb-4">Configure how sprites are generated when a sprite plan runs. Use <strong>stub</strong> for testing without API calls, <strong>openai</strong> for DALL-E, or <strong>stable_diffusion</strong> for a local/remote SD WebUI.</p>
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div class="form-control">
           <label class="label"><span class="label-text">Provider</span></label>
@@ -57,14 +82,17 @@
             <option value="openai" {% if config.sprites.get('provider') == 'openai' %}selected{% endif %}>openai</option>
             <option value="stable_diffusion" {% if config.sprites.get('provider') == 'stable_diffusion' %}selected{% endif %}>stable_diffusion</option>
           </select>
+          <label class="label"><span class="label-text-alt opacity-50">stub = placeholder images for testing</span></label>
         </div>
         <div class="form-control">
           <label class="label"><span class="label-text">Model</span></label>
           <input type="text" id="sprite-model" class="input input-bordered" value="{{ config.sprites.get('model', 'dall-e-3') }}">
+          <label class="label"><span class="label-text-alt opacity-50">Image generation model ID</span></label>
         </div>
         <div class="form-control">
           <label class="label"><span class="label-text">Image Size</span></label>
           <input type="text" id="sprite-size" class="input input-bordered" value="{{ config.sprites.get('image_size', '1024x1024') }}">
+          <label class="label"><span class="label-text-alt opacity-50">WxH in pixels, e.g. 1024x1024, 512x512</span></label>
         </div>
       </div>
     </div>
@@ -72,11 +100,12 @@
 </div>
 
 <!-- Tab: Providers -->
-<div id="tab-providers" class="tab-content hidden">
+<div id="tab-providers" class="cfg-panel hidden">
   <div class="card bg-base-200 mb-4">
     <div class="card-body">
-      <h2 class="card-title text-sm uppercase tracking-wider opacity-60 mb-4">Provider Catalog</h2>
-      <p class="text-sm opacity-50 mb-4">Reference view. Use the Full YAML tab for advanced editing.</p>
+      <h2 class="card-title text-sm uppercase tracking-wider opacity-60 mb-2">Provider Catalog</h2>
+      <p class="text-xs opacity-50 mb-4">Read-only reference of configured providers and their models. To add or remove providers, edit the Full YAML tab. Set the matching API key as an environment variable to use a provider.</p>
+      {% if config.providers %}
       {% for prov_name, prov in config.providers.items() %}
       <div class="collapse collapse-arrow bg-base-300 mb-2">
         <input type="checkbox" {% if loop.first %}checked{% endif %}>
@@ -103,17 +132,24 @@
         </div>
       </div>
       {% endfor %}
+      {% else %}
+      <div class="alert alert-info">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        <span class="text-sm">No providers configured. Switch to the Full YAML tab to add provider definitions, or type model IDs directly in the Tiers tab.</span>
+      </div>
+      {% endif %}
     </div>
   </div>
 </div>
 
 <!-- Tab: Raw YAML -->
-<div id="tab-raw" class="tab-content hidden">
+<div id="tab-raw" class="cfg-panel hidden">
   <div class="card bg-base-200 mb-4">
     <div class="card-body">
       <h2 class="card-title text-sm uppercase tracking-wider opacity-60 mb-3">Raw YAML Editor</h2>
+      <p class="text-xs opacity-50 mb-3">Edit the full models.yaml directly. Changes here override the structured tabs. This is where you add providers, engine_overrides, and advanced settings.</p>
       <div id="yaml-editor" class="border border-base-300 rounded-lg overflow-hidden min-h-[500px]"></div>
-      <textarea id="yaml-raw" class="hidden">{{ config.raw }}</textarea>
+      <textarea id="yaml-raw" class="textarea textarea-bordered w-full min-h-[500px] font-mono text-sm mt-2">{{ config.raw }}</textarea>
     </div>
   </div>
 </div>
@@ -129,22 +165,28 @@
 {% endblock %}
 {% block scripts %}
 <script type="module">
-import {initEditor, getContent} from '/static/editor-init.js';
-let yamlContent = document.getElementById('yaml-raw').value;
-const editor = initEditor(
-  document.getElementById('yaml-editor'),
-  'yaml',
-  yamlContent,
-  (val) => { yamlContent = val; }
-);
-window._getYaml = () => yamlContent;
-window._cmEditor = editor;
+try {
+  const {initEditor, getContent} = await import('/static/editor-init.js');
+  let yamlContent = document.getElementById('yaml-raw').value;
+  const editor = initEditor(
+    document.getElementById('yaml-editor'),
+    'yaml',
+    yamlContent,
+    (val) => { yamlContent = val; }
+  );
+  window._getYaml = () => yamlContent;
+  window._cmEditor = editor;
+  document.getElementById('yaml-raw').style.display = 'none';
+} catch(e) {
+  console.warn('CodeMirror unavailable, using plain textarea:', e);
+  document.getElementById('yaml-editor').style.display = 'none';
+}
 </script>
 <script>
 var activeTab = 'tab-tiers';
 
 function switchTab(evt, tabId) {
-  document.querySelectorAll('.tab-content').forEach(function(el) { el.classList.add('hidden'); });
+  document.querySelectorAll('.cfg-panel').forEach(function(el) { el.classList.add('hidden'); });
   document.getElementById(tabId).classList.remove('hidden');
   document.querySelectorAll('[role=tab]').forEach(function(el) { el.classList.remove('tab-active'); });
   evt.target.classList.add('tab-active');
@@ -161,10 +203,11 @@ function buildYamlFromForm() {
   }
   // Update tiers
   current.tiers = {};
-  document.querySelectorAll('.tier-model').forEach(function(sel) {
-    var tier = parseInt(sel.dataset.tier);
+  document.querySelectorAll('.tier-model').forEach(function(el) {
+    var tier = parseInt(el.dataset.tier);
     var desc = document.querySelector('.tier-desc[data-tier="' + tier + '"]');
-    current.tiers[tier] = { model: sel.value, description: desc ? desc.value : '' };
+    var model = el.tagName === 'SELECT' ? el.value : el.value.trim();
+    current.tiers[tier] = { model: model, description: desc ? desc.value : '' };
   });
   // Update sprites
   current.sprites = {
