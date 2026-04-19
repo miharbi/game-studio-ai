@@ -150,6 +150,9 @@ python runner.py list-agents
 
 # List available plan templates
 python runner.py list-plans
+
+# List all supported LLM providers and models
+python runner.py list-models
 ```
 
 ---
@@ -219,9 +222,38 @@ game-studio-ai/
 | `OPENAI_API_KEY` | optional | Required if `SPRITE_PROVIDER=openai` |
 | `SD_API_URL` | `http://localhost:7860` | Stable Diffusion API URL |
 
+### Supported LLM Providers
+
+The project uses [litellm](https://github.com/BerriAI/litellm) for LLM routing, which means **any litellm-supported model works out of the box**. Set the appropriate API key and override the tier model:
+
+| Provider | Env Key | Example models | Notes |
+|---|---|---|---|
+| **GitHub Models** | `GITHUB_TOKEN` | `github/gpt-4.1`, `github/gpt-4.1-mini` | Free with Copilot — **default** |
+| **OpenAI** | `OPENAI_API_KEY` | `openai/gpt-4o`, `openai/gpt-4o-mini` | Also used for DALL-E sprites |
+| **Anthropic** | `ANTHROPIC_API_KEY` | `anthropic/claude-sonnet-4-20250514` | Claude models |
+| **DeepSeek** | `DEEPSEEK_API_KEY` | `deepseek/deepseek-chat`, `deepseek/deepseek-reasoner` | DeepSeek-V3 / R1 |
+| **Moonshot / Kimi** | `MOONSHOT_API_KEY` | `moonshot/moonshot-v1-8k`, `moonshot/moonshot-v1-128k` | Up to 128K context |
+| **DashScope / Qwen** | `DASHSCOPE_API_KEY` | `dashscope/qwen-max`, `dashscope/qwen-plus`, `dashscope/qwen-turbo` | Alibaba Cloud |
+| **Zhipu AI / GLM** | `ZHIPUAI_API_KEY` | `zhipuai/glm-4-plus`, `zhipuai/glm-4-flash` | GLM-4 models, up to 1M context |
+| **Google Gemini** | `GOOGLE_API_KEY` | `gemini/gemini-2.5-flash`, `gemini/gemini-2.5-pro` | 1M context |
+| **Mistral** | `MISTRAL_API_KEY` | `mistral/mistral-large-latest` | Mistral AI |
+| **Custom / OpenAI-compat** | `OPENAI_API_KEY` + `OPENAI_BASE_URL` | any | Yi, vLLM, Ollama, etc. |
+
+**Quick example — switch to DeepSeek:**
+
+```bash
+export DEEPSEEK_API_KEY=your_key_here
+export TIER1_MODEL=deepseek/deepseek-chat
+export TIER2_MODEL=deepseek/deepseek-chat
+export TIER3_MODEL=deepseek/deepseek-chat
+python runner.py run --plan plans/templates/design_feature.yaml --input "Add a wall-jump mechanic"
+```
+
+Run `python runner.py list-models` to see all configured providers and their models.
+
 ### `config/models.yaml`
 
-Controls tier-to-model routing and sprite generation defaults. All entries can be overridden by environment variables.
+Controls tier-to-model routing, the provider catalog, and sprite generation defaults. All tier entries can be overridden by environment variables. Individual agents can also set `model_override` in their frontmatter.
 
 ---
 
@@ -245,7 +277,7 @@ Controls tier-to-model routing and sprite generation defaults. All entries can b
 pytest tests/ -v
 ```
 
-All 31 tests should pass without a live LLM connection — the test suite uses local fixtures and does not make API calls.
+All tests should pass without a live LLM connection — the test suite uses local fixtures and does not make API calls.
 
 ---
 

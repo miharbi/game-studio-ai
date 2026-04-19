@@ -18,6 +18,9 @@ router = APIRouter()
 
 _PLANS_DIR: Path = Path(__file__).resolve().parents[3] / "plans"
 
+# Sentinel value sent through the queue to signal run completion.
+_DONE_SENTINEL = "__STREAM_DONE__"
+
 # Active executors keyed by run_id
 _active_executors: dict[str, PlanExecutor] = {}
 # Output queues keyed by run_id — bridges sync executor thread → async SSE
@@ -37,13 +40,18 @@ async def dashboard(request: Request) -> HTMLResponse:
     templates = request.app.state.templates
     plans = sorted((_PLANS_DIR / "templates").glob("*.yaml"))
     return templates.TemplateResponse(
-        "dashboard.html",
-        {"request": request, "runs": runs, "plans": [p.name for p in plans]},
+        request=request,
+        name="dashboard.html",
+        context={"runs": runs, "plans": [p.name for p in plans]},
     )
 
 
 @router.post("/plans/run")
 async def start_run(body: RunRequest) -> dict[str, str]:
+    # Prevent path traversal — plan name must be a plain filename
+    if Path(body.plan).name != body.plan or "/" in body.plan or "\\" in body.plan:
+        raise HTTPException(422, "Invalid plan name — must be a plain filename, no paths.")
+
     plan_path = _PLANS_DIR / "templates" / body.plan
     if not plan_path.exists():
         raise HTTPException(404, f"Plan not found: {body.plan}")
@@ -69,7 +77,20 @@ async def start_run(body: RunRequest) -> dict[str, str]:
     _active_executors[run_id] = executor
     _output_queues[run_id] = q
 
-    thread = threading.Thread(target=executor.run, daemon=True)
+    def _run_and_cleanup() -> None:
+        try:
+            executor.run()
+        finally:
+            asyncio.run_coroutine_threadsafe(q.put(_DONE_SENTINEL), loop)
+            # Clean up references after a short delay to let SSE drain
+            def _cleanup() -> None:
+                import time
+                time.sleep(5)
+                _active_executors.pop(run_id, None)
+                _output_queues.pop(run_id, None)
+            threading.Thread(target=_cleanup, daemon=True).start()
+
+    thread = threading.Thread(target=_run_and_cleanup, daemon=True)
     thread.start()
 
     return {"run_id": run_id}
@@ -87,11 +108,11 @@ async def stream_run(run_id: str, request: Request) -> StreamingResponse:
                 break
             try:
                 chunk = await asyncio.wait_for(q.get(), timeout=30.0)
-                safe = chunk.replace("\n", "<br>")
-                yield f"data: {safe}\n\n"
-                if chunk.strip() in ("✅  Plan complete. Output in output/pending/",):
+                if chunk == _DONE_SENTINEL:
                     yield "data: __DONE__\n\n"
                     break
+                safe = chunk.replace("\n", "<br>")
+                yield f"data: {safe}\n\n"
             except asyncio.TimeoutError:
                 yield ": keep-alive\n\n"
 
@@ -109,9 +130,9 @@ async def run_detail(run_id: str, request: Request) -> HTMLResponse:
     executor = _active_executors.get(run_id)
     plan_steps = executor.plan.steps if executor else []
     return templates.TemplateResponse(
-        "plan_run.html",
-        {
-            "request": request,
+        request=request,
+        name="plan_run.html",
+        context={
             "run": run,
             "steps": steps,
             "plan_steps": plan_steps,

@@ -167,7 +167,7 @@ class PlanExecutor:
         model = agent.model_override or get_model(step.tier, self.engine)
         client = LLMClient(model)
 
-        context_block = self.context.build_context(self._engine_context)
+        context_block = self.context.build_context(self._engine_context, model=model)
         system = agent.system_prompt
         if context_block:
             system = f"{system}\n\n---\n\n{context_block}"

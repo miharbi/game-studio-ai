@@ -1,5 +1,6 @@
 # Tier → model mapping.
 # Any litellm-supported model ID can be used. Prefix: openai/, anthropic/, github/, etc.
+# Set TIER1_MODEL / TIER2_MODEL / TIER3_MODEL env vars to override at runtime.
 
 tiers:
   1:
@@ -23,3 +24,120 @@ sprites:
   provider: "stub"          # stub | openai | stable_diffusion
   model: "dall-e-3"
   image_size: "1024x1024"
+
+# ---------------------------------------------------------------------------
+# Supported providers — reference catalog.
+# All providers are accessed through litellm. Set the matching API key env var.
+# Use any model ID below as a TIER*_MODEL env var or an agent model_override.
+# ---------------------------------------------------------------------------
+providers:
+  github:
+    env_key: "GITHUB_TOKEN"
+    models:
+      - id: "github/gpt-4.1"
+        context_window: 1047576
+        note: "GPT-4.1 via GitHub Models — free with Copilot"
+      - id: "github/gpt-4.1-mini"
+        context_window: 1047576
+        note: "GPT-4.1 Mini via GitHub Models"
+      - id: "github/gpt-4.1-nano"
+        context_window: 1047576
+        note: "GPT-4.1 Nano via GitHub Models — fastest"
+
+  openai:
+    env_key: "OPENAI_API_KEY"
+    models:
+      - id: "openai/gpt-4.1"
+        context_window: 1047576
+        note: "GPT-4.1 direct via OpenAI"
+      - id: "openai/gpt-4o"
+        context_window: 128000
+        note: "GPT-4o multimodal"
+      - id: "openai/gpt-4o-mini"
+        context_window: 128000
+        note: "GPT-4o Mini — cost-effective"
+
+  anthropic:
+    env_key: "ANTHROPIC_API_KEY"
+    models:
+      - id: "anthropic/claude-sonnet-4-20250514"
+        context_window: 200000
+        note: "Claude Sonnet 4"
+      - id: "anthropic/claude-3-5-haiku-20241022"
+        context_window: 200000
+        note: "Claude 3.5 Haiku — fast"
+
+  deepseek:
+    env_key: "DEEPSEEK_API_KEY"
+    models:
+      - id: "deepseek/deepseek-chat"
+        context_window: 65536
+        note: "DeepSeek-V3 Chat"
+      - id: "deepseek/deepseek-reasoner"
+        context_window: 65536
+        note: "DeepSeek-R1 Reasoner"
+
+  # Kimi — by Moonshot AI (China)
+  moonshot:
+    env_key: "MOONSHOT_API_KEY"
+    models:
+      - id: "moonshot/moonshot-v1-8k"
+        context_window: 8000
+        note: "Kimi 8K context"
+      - id: "moonshot/moonshot-v1-32k"
+        context_window: 32000
+        note: "Kimi 32K context"
+      - id: "moonshot/moonshot-v1-128k"
+        context_window: 128000
+        note: "Kimi 128K context — long documents"
+
+  # Qwen — by Alibaba / DashScope
+  dashscope:
+    env_key: "DASHSCOPE_API_KEY"
+    models:
+      - id: "dashscope/qwen-max"
+        context_window: 32768
+        note: "Qwen-Max — strongest Qwen model"
+      - id: "dashscope/qwen-plus"
+        context_window: 131072
+        note: "Qwen-Plus — balanced"
+      - id: "dashscope/qwen-turbo"
+        context_window: 131072
+        note: "Qwen-Turbo — cost-effective"
+      - id: "dashscope/qwen-long"
+        context_window: 10000000
+        note: "Qwen-Long — massive context"
+
+  # GLM — by Zhipu AI (China)
+  zhipuai:
+    env_key: "ZHIPUAI_API_KEY"
+    models:
+      - id: "zhipuai/glm-4-plus"
+        context_window: 128000
+        note: "GLM-4 Plus — top quality"
+      - id: "zhipuai/glm-4-flash"
+        context_window: 128000
+        note: "GLM-4 Flash — fast and free"
+      - id: "zhipuai/glm-4-long"
+        context_window: 1000000
+        note: "GLM-4 Long — 1M context"
+
+  google:
+    env_key: "GOOGLE_API_KEY"
+    models:
+      - id: "gemini/gemini-2.5-flash"
+        context_window: 1048576
+        note: "Gemini 2.5 Flash"
+      - id: "gemini/gemini-2.5-pro"
+        context_window: 1048576
+        note: "Gemini 2.5 Pro"
+
+  mistral:
+    env_key: "MISTRAL_API_KEY"
+    models:
+      - id: "mistral/mistral-large-latest"
+        context_window: 128000
+        note: "Mistral Large"
+      - id: "mistral/mistral-small-latest"
+        context_window: 128000
+        note: "Mistral Small — fast"

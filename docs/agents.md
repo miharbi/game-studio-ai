@@ -46,6 +46,29 @@ Your output format:
 |---|---|---|
 | `model_override` | string | litellm model ID — overrides the tier default for this specific agent |
 
+### `model_override` examples
+
+Any [litellm-supported model](https://docs.litellm.ai/docs/providers) can be used:
+
+```yaml
+# OpenAI / GitHub
+model_override: github/gpt-4.1
+model_override: openai/gpt-4o
+
+# Chinese providers
+model_override: deepseek/deepseek-chat           # DeepSeek-V3
+model_override: moonshot/moonshot-v1-128k         # Kimi 128K context
+model_override: dashscope/qwen-max                # Qwen-Max (Alibaba)
+model_override: zhipuai/glm-4-plus                # GLM-4 Plus (Zhipu)
+
+# Others
+model_override: anthropic/claude-sonnet-4-20250514
+model_override: gemini/gemini-2.5-flash
+model_override: mistral/mistral-large-latest
+```
+
+Run `python runner.py list-models` to see all pre-configured providers and model IDs.
+
 ## System prompt guidelines
 
 - **Be specific about output format.** Agents that produce structured output (JSON, code, design specs) should include the exact format in their system prompt so the orchestrator can validate it.

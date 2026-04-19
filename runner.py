@@ -112,5 +112,30 @@ def list_plans() -> None:
         typer.echo(f"  {p.name}")
 
 
+@app.command(name="list-models")
+def list_models() -> None:
+    """List all supported LLM providers and their models from config/models.yaml."""
+    from src.models.router import list_providers, get_model
+
+    typer.echo("\nDefault tier models:")
+    for tier in (1, 2, 3):
+        typer.echo(f"  Tier {tier}: {get_model(tier)}")
+
+    providers = list_providers()
+    if not providers:
+        typer.echo("\nNo providers configured in config/models.yaml")
+        return
+
+    typer.echo(f"\nSupported providers ({len(providers)}):\n")
+    for name, info in providers.items():
+        env_key = info.get("env_key", "?")
+        typer.echo(f"  {name}  (env: {env_key})")
+        for m in info.get("models", []):
+            ctx = m.get("context_window", "?")
+            note = m.get("note", "")
+            typer.echo(f"    {m['id']:45s}  ctx={ctx:>10}  {note}")
+        typer.echo("")
+
+
 if __name__ == "__main__":
     app()

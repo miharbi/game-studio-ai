@@ -17,8 +17,9 @@ async def sprite_gallery(request: Request) -> HTMLResponse:
     images = sorted(_SPRITES_DIR.glob("*.png"))
     templates = request.app.state.templates
     return templates.TemplateResponse(
-        "sprites.html",
-        {"request": request, "images": [img.name for img in images]},
+        request=request,
+        name="sprites.html",
+        context={"images": [img.name for img in images]},
     )
 
 

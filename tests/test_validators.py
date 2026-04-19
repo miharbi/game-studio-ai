@@ -61,3 +61,24 @@ class TestValidateOutput:
     def test_unknown_schema_type_returns_no_errors(self):
         errors = validate_output("anything", "unknown_schema_xyz")
         assert errors == []
+
+    def test_sprite_spec_with_width_height(self):
+        """width + height (no dimensions key) should pass."""
+        spec = {"name": "hero", "prompt": "pixel art hero", "width": 48, "height": 64}
+        content = f"```json\n{json.dumps(spec)}\n```"
+        errors = validate_output(content, "sprite_spec")
+        assert errors == []
+
+    def test_sprite_spec_with_dimensions(self):
+        """dimensions key (old format) should still pass."""
+        spec = {"name": "hero", "prompt": "pixel art hero", "dimensions": "48x64"}
+        content = f"```json\n{json.dumps(spec)}\n```"
+        errors = validate_output(content, "sprite_spec")
+        assert errors == []
+
+    def test_sprite_spec_missing_size_fields(self):
+        """Missing both dimensions and width/height should fail."""
+        spec = {"name": "hero", "prompt": "pixel art hero"}
+        content = f"```json\n{json.dumps(spec)}\n```"
+        errors = validate_output(content, "sprite_spec")
+        assert len(errors) > 0

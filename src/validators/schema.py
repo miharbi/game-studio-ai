@@ -56,7 +56,12 @@ def _validate_sprite_spec(content: str) -> list[str]:
     if errors:
         return errors
     data: dict[str, Any] = json.loads(_extract_json_block(content))
-    missing = [k for k in ("name", "type", "prompt", "dimensions") if k not in data]
+    # Accept both formats: {name, type, prompt, dimensions} or {name, prompt, width, height}
+    missing = [k for k in ("name", "prompt") if k not in data]
+    has_dimensions = "dimensions" in data
+    has_wh = "width" in data and "height" in data
+    if not has_dimensions and not has_wh:
+        missing.append("dimensions (or width+height)")
     if missing:
         errors.append(f"Missing sprite spec keys: {missing}")
     return errors
