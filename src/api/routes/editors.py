@@ -1,6 +1,7 @@
 """Editor routes — in-browser CRUD for agents, plans, config & engines."""
 from __future__ import annotations
 
+import os
 import re
 from pathlib import Path
 from typing import Any
@@ -17,6 +18,8 @@ _AGENTS_DIR: Path = _ROOT / "agents"
 _PLANS_DIR: Path = _ROOT / "plans" / "templates"
 _CONFIG_DIR: Path = _ROOT / "config"
 _ENGINES_DIR: Path = _CONFIG_DIR / "engines"
+_SETTINGS_PATH: Path = _CONFIG_DIR / "settings.yaml"
+_DOT_ENV_PATH: Path = _CONFIG_DIR / ".env"
 
 # ── safety helpers ──────────────────────────────────────────────────────────
 
@@ -86,17 +89,74 @@ def _list_agents() -> list[dict[str, str]]:
     return agents
 
 
-def _list_all_models() -> list[str]:
-    """Return flat list of all model IDs from providers catalog."""
+def _providers_with_status() -> list[dict]:
+    """Return providers from models.yaml each with active bool based on env_key presence."""
+    path = _CONFIG_DIR / "models.yaml"
+    if not path.exists():
+        return []
+    data = yaml.safe_load(path.read_text()) or {}
+    result = []
+    for name, prov in (data.get("providers") or {}).items():
+        env_key = prov.get("env_key", "")
+        active = bool(env_key and os.environ.get(env_key))
+        result.append({
+            "name": name,
+            "env_key": env_key,
+            "models": prov.get("models", []),
+            "active": active,
+        })
+    return result
+
+
+def _list_all_models(active_only: bool = False) -> list[str]:
+    """Return flat list of model IDs from providers catalog."""
     path = _CONFIG_DIR / "models.yaml"
     if not path.exists():
         return []
     data = yaml.safe_load(path.read_text()) or {}
     models: list[str] = []
     for prov in (data.get("providers") or {}).values():
+        if active_only:
+            env_key = prov.get("env_key", "")
+            if not (env_key and os.environ.get(env_key)):
+                continue
         for m in prov.get("models", []):
             models.append(m["id"])
     return models
+
+
+def _load_settings() -> dict:
+    """Load config/settings.yaml or return defaults."""
+    if _SETTINGS_PATH.exists():
+        try:
+            data = yaml.safe_load(_SETTINGS_PATH.read_text()) or {}
+            return {"project_path": data.get("project_path", "")}
+        except Exception:
+            pass
+    return {"project_path": ""}
+
+
+def _detect_engine(project_path: str) -> dict | None:
+    """Try to detect a game engine from the project directory."""
+    if not project_path:
+        return None
+    p = Path(project_path)
+    if not p.is_dir():
+        return None
+    for engine_file in sorted(_ENGINES_DIR.glob("*.yaml")):
+        try:
+            cfg = yaml.safe_load(engine_file.read_text()) or {}
+            detect_files = cfg.get("detect_files", [])
+            for df in detect_files:
+                if (p / df).exists():
+                    return {
+                        "id": cfg.get("id", engine_file.stem),
+                        "name": cfg.get("name", engine_file.stem),
+                        "matched": df,
+                    }
+        except Exception:
+            continue
+    return None
 
 
 def _list_schema_types() -> list[str]:
@@ -150,6 +210,15 @@ def _build_plan_yaml(body: "PlanBody") -> str:
 
 class FileBody(BaseModel):
     content: str
+
+
+class ConfigBody(BaseModel):
+    content: str
+    project_path: str | None = None
+
+
+class ConfigKeysBody(BaseModel):
+    keys: dict[str, str]
 
 
 class RenameBody(BaseModel):
@@ -342,29 +411,78 @@ async def config_edit(request: Request) -> HTMLResponse:
     path = _CONFIG_DIR / "models.yaml"
     content = path.read_text() if path.exists() else ""
     config = _parse_config(content)
-    # Detect if config is missing or has no tier models set
     is_new = not path.exists() or not any(
         config["tiers"].get(t, {}).get("model") for t in (1, 2, 3)
     )
+    settings = _load_settings()
+    detected_engine = _detect_engine(settings["project_path"])
+    providers_with_status = _providers_with_status()
+    active_models = _list_all_models(active_only=True)
     templates = request.app.state.templates
     return templates.TemplateResponse(
         request=request, name="edit_config.html",
         context={
             "config": config,
-            "all_models": _list_all_models(),
+            "all_models": active_models,
+            "providers_with_status": providers_with_status,
             "is_new_config": is_new,
+            "settings": settings,
+            "detected_engine": detected_engine,
         },
     )
 
 
 @router.put("/config")
-async def config_save(body: FileBody) -> dict[str, str]:
+async def config_save(body: ConfigBody) -> dict:
     try:
         yaml.safe_load(body.content)
     except yaml.YAMLError as exc:
         raise HTTPException(422, f"Invalid YAML: {exc}")
     (_CONFIG_DIR / "models.yaml").write_text(body.content)
-    return {"status": "saved", "file": "models.yaml"}
+    result: dict[str, Any] = {"status": "saved", "file": "models.yaml"}
+    if body.project_path is not None:
+        _CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+        _SETTINGS_PATH.write_text(yaml.dump(
+            {"project_path": body.project_path.strip()}, default_flow_style=False
+        ))
+        result["detected_engine"] = _detect_engine(body.project_path.strip())
+    return result
+
+
+@router.put("/config/keys")
+async def config_save_keys(body: ConfigKeysBody) -> dict:
+    """Save API keys to config/.env — validates names, never echoes values."""
+    # Collect known env_key names from models.yaml
+    known_env_keys: set[str] = set()
+    path = _CONFIG_DIR / "models.yaml"
+    if path.exists():
+        data = yaml.safe_load(path.read_text()) or {}
+        for prov in (data.get("providers") or {}).values():
+            env_key = prov.get("env_key", "")
+            if env_key:
+                known_env_keys.add(env_key)
+    for key_name in body.keys:
+        if key_name not in known_env_keys:
+            raise HTTPException(422, f"Unknown API key name: {key_name}")
+    # Load existing .env entries
+    existing: dict[str, str] = {}
+    if _DOT_ENV_PATH.exists():
+        for line in _DOT_ENV_PATH.read_text().splitlines():
+            line = line.strip()
+            if line and "=" in line and not line.startswith("#"):
+                k, _, v = line.partition("=")
+                existing[k.strip()] = v.strip()
+    # Merge: only update non-empty values, load into os.environ immediately
+    updated = 0
+    for k, v in body.keys.items():
+        if v.strip():
+            existing[k] = v.strip()
+            os.environ[k] = v.strip()
+            updated += 1
+    _CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    lines = [f"{k}={v}" for k, v in existing.items()]
+    _DOT_ENV_PATH.write_text("\n".join(lines) + ("\n" if lines else ""))
+    return {"status": "saved", "updated": updated}
 
 
 # ═════════════════════════════════════════════════════════════════════════════

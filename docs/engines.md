@@ -6,9 +6,19 @@ Each engine has a YAML config in `config/engines/` that controls:
 - **Sprite dimensions** — pixel sizes per asset type
 - **Agent context** — a paragraph injected into every agent prompt when that engine is active
 
+## Auto-detection
+
+Set your game project path in **Setup → Project** tab (`/edit/config`). The server scans the directory against all `detect_files` entries in `config/engines/*.yaml` and shows which engine it matched. Detection also runs at startup if `config/settings.yaml` exists.
+
+You can trigger detection from the CLI too:
+
+```bash
+python runner.py detect-engine /path/to/project
+```
+
 ## Engine configs
 
-### Godot 4 (`config/engines/godot4.yaml`)
+### Godot 4
 
 **Detection:** presence of `project.godot` in the project root
 
@@ -35,7 +45,7 @@ Each engine has a YAML config in `config/engines/` that controls:
 
 ---
 
-### Unity (`config/engines/unity.yaml`)
+### Unity
 
 **Detection:** `ProjectSettings/ProjectVersion.txt` or any `*.sln` file
 
@@ -61,7 +71,7 @@ Each engine has a YAML config in `config/engines/` that controls:
 
 ---
 
-### Unreal Engine 5 (`config/engines/unreal5.yaml`)
+### Unreal Engine 5
 
 **Detection:** any `*.uproject` file in the project root
 

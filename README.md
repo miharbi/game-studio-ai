@@ -14,18 +14,22 @@ git clone <repo-url> game-studio-ai
 cd game-studio-ai
 pip install -e ".[dev]"
 
-# 2. Configure your LLM provider
-cp .env.example .env
-# Edit .env — add your GITHUB_TOKEN or other provider key
+# 2. Launch the web UI and configure everything there
+python runner.py serve
+# Open http://localhost:8000 → click "Setup" in the sidebar
+# Add your API keys in the API Keys tab — they are saved to config/.env
 
-# 3. Run your first plan
+# 3. Run your first plan from the dashboard
+```
+
+Or configure via environment variables directly:
+
+```bash
+cp .env.example .env   # or use config/.env via the Setup page
+# Edit .env — add your GITHUB_TOKEN or other provider key
 python runner.py run --plan plans/templates/design_feature.yaml \
     --engine godot4 \
     --input "Add a wall-jump mechanic for the player character"
-
-# 4. Or launch the web UI
-python runner.py serve
-# Open http://localhost:8000
 ```
 
 ---
@@ -161,9 +165,17 @@ python runner.py list-models
 
 The web interface provides:
 
-- **Dashboard** — start a run, pick a plan template and engine, view recent runs
+- **Dashboard** — start a run, pick a plan template and engine, view recent runs; shows a setup alert when configuration is missing
 - **Run detail** — live-streamed agent output via Server-Sent Events, pipeline step indicators, gate approval panel
-- **Sprite gallery** — review AI-generated sprites, approve (moves to `output/approved/`) or reject
+- **Sprite gallery** — review AI-generated sprites, approve (moves to `output/approved/`) or reject; includes a 4-step workflow explanation
+- **Setup** (`/edit/config`) — unified configuration page with tabbed sections:
+  - **Tiers** — assign a model to each tier; only models from providers with an API key are shown
+  - **Sprites** — configure the image generation provider and model
+  - **Providers** — view all configured providers; active (key set) vs inactive (no key) are visually distinguished
+  - **API Keys** — enter API keys per provider; saved to `config/.env` and loaded immediately without restart
+  - **Project** — set the game project path for engine auto-detection
+  - **Full YAML** — raw `models.yaml` editor (CodeMirror 6 with textarea fallback)
+- **Agents / Plans / Engines** — in-browser editors with CodeMirror 6 and textarea fallback
 
 ```bash
 python runner.py serve
@@ -180,7 +192,9 @@ game-studio-ai/
 ├── pyproject.toml          # packaging, dependencies, pytest config
 ├── .env.example            # environment variable template
 ├── config/
-│   ├── models.yaml         # tier → model mapping
+│   ├── models.yaml         # tier → model mapping + provider catalog
+│   ├── settings.yaml       # project path (written by Setup UI)
+│   ├── .env                # API keys saved via Setup UI (git-ignored)
 │   └── engines/
 │       ├── godot4.yaml
 │       ├── unity.yaml
@@ -210,16 +224,40 @@ game-studio-ai/
 
 ## Configuration
 
-### Environment variables (`.env`)
+### API Keys — Setup UI (recommended)
+
+Open `http://localhost:8000` → **Setup** → **API Keys** tab. Enter your key next to each provider. Keys are saved to `config/.env` (git-ignored) and loaded into the environment immediately — no restart needed.
+
+Providers without a key are marked **inactive** and their models are hidden from Tier dropdowns until you add a key.
+
+### API Keys — environment variables (alternative)
+
+You can also set keys as standard environment variables or in a root `.env` file:
+
+```bash
+cp .env.example .env
+# Add your keys:
+export GITHUB_TOKEN=your_token
+export OPENAI_API_KEY=your_key
+```
+
+### Environment variables
 
 | Variable | Default | Description |
 |---|---|---|
-| `GITHUB_TOKEN` | required | GitHub Models API token |
-| `TIER1_MODEL` | `github/gpt-4.1` | Model for Tier 1 agents |
-| `TIER2_MODEL` | `github/gpt-4.1-mini` | Model for Tier 2 agents |
-| `TIER3_MODEL` | `github/gpt-4.1-mini` | Model for Tier 3 agents |
+| `GITHUB_TOKEN` | — | GitHub Models API token (free with Copilot) |
+| `OPENAI_API_KEY` | — | OpenAI / DALL-E |
+| `ANTHROPIC_API_KEY` | — | Claude models |
+| `DEEPSEEK_API_KEY` | — | DeepSeek-V3, R1 |
+| `MOONSHOT_API_KEY` | — | Kimi (up to 128K context) |
+| `DASHSCOPE_API_KEY` | — | Qwen / Alibaba Cloud |
+| `ZHIPUAI_API_KEY` | — | GLM-4 / Zhipu AI |
+| `GOOGLE_API_KEY` | — | Gemini models |
+| `MISTRAL_API_KEY` | — | Mistral AI |
+| `TIER1_MODEL` | `github/gpt-4.1` | Runtime override for Tier 1 |
+| `TIER2_MODEL` | `github/gpt-4.1-mini` | Runtime override for Tier 2 |
+| `TIER3_MODEL` | `github/gpt-4.1-mini` | Runtime override for Tier 3 |
 | `SPRITE_PROVIDER` | `stub` | `stub` \| `openai` \| `stable_diffusion` |
-| `OPENAI_API_KEY` | optional | Required if `SPRITE_PROVIDER=openai` |
 | `SD_API_URL` | `http://localhost:7860` | Stable Diffusion API URL |
 
 ### Supported LLM Providers
@@ -253,7 +291,7 @@ Run `python runner.py list-models` to see all configured providers and their mod
 
 ### `config/models.yaml`
 
-Controls tier-to-model routing, the provider catalog, and sprite generation defaults. All tier entries can be overridden by environment variables. Individual agents can also set `model_override` in their frontmatter.
+Controls tier-to-model routing, the provider catalog (with `env_key` per provider), and sprite generation defaults. All tier entries can be overridden by environment variables. Individual agents can also set `model_override` in their frontmatter. Edit this file directly in the **Full YAML** tab of the Setup page or in `config/models.yaml`.
 
 ---
 
@@ -262,8 +300,10 @@ Controls tier-to-model routing, the provider catalog, and sprite generation defa
 | Layer | Library |
 |---|---|
 | LLM routing | [litellm](https://github.com/BerriAI/litellm) |
-| Web framework | [FastAPI](https://fastapi.tiangolo.com/) + [htmx](https://htmx.org/) |
+| Web framework | [FastAPI](https://fastapi.tiangolo.com/) + [htmx 1.9](https://htmx.org/) |
+| UI components | [DaisyUI 4](https://daisyui.com/) (MIT, CDN) + [Tailwind CSS](https://tailwindcss.com/) (CDN) |
 | Templates | Jinja2 |
+| In-browser editor | [CodeMirror 6](https://codemirror.net/) (ESM, `esm.sh`) with textarea fallback |
 | Database | SQLModel + SQLite |
 | CLI | [Typer](https://typer.tiangolo.com/) |
 | Image generation | Pillow + DALL-E 3 / Stable Diffusion |

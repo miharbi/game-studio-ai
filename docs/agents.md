@@ -88,3 +88,7 @@ steps:
     action: "Do something with my agent."
     gate: auto
 ```
+
+## Editing agents in the web UI
+
+Navigate to **Edit → Agents** in the sidebar. Each agent file is editable with a CodeMirror 6 editor (falls back to a plain textarea if the ESM import fails). Changes are saved immediately via `PUT /edit/agents/{tier}/{filename}`. The `model_override` field can also be set from the agent editor form.

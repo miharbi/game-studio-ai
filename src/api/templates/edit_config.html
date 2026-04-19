@@ -1,6 +1,6 @@
 {% extends "base.html" %}
-{% block title %}Config — Game Studio AI{% endblock %}
-{% block page_title %}Model Configuration{% endblock %}
+{% block title %}Setup — Game Studio AI{% endblock %}
+{% block page_title %}Setup{% endblock %}
 {% block head_extra %}
 <script src="https://cdn.jsdelivr.net/npm/js-yaml@4/dist/js-yaml.min.js"></script>
 {% endblock %}
@@ -21,6 +21,8 @@
   <a role="tab" class="tab tab-active" onclick="switchTab(event, 'tab-tiers')">Tiers</a>
   <a role="tab" class="tab" onclick="switchTab(event, 'tab-sprites')">Sprites</a>
   <a role="tab" class="tab" onclick="switchTab(event, 'tab-providers')">Providers</a>
+  <a role="tab" class="tab" onclick="switchTab(event, 'tab-keys')">API Keys</a>
+  <a role="tab" class="tab" onclick="switchTab(event, 'tab-project')">Project</a>
   <a role="tab" class="tab" onclick="switchTab(event, 'tab-raw')">Full YAML</a>
 </div>
 
@@ -33,11 +35,13 @@
       {% if not all_models %}
       <div class="alert alert-info mb-4">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-        <span class="text-sm">No provider models loaded yet. Type a <a href="https://docs.litellm.ai/docs/providers" target="_blank" class="link">litellm model ID</a> directly (e.g. <code class="font-mono text-xs">openai/gpt-4o</code>, <code class="font-mono text-xs">anthropic/claude-sonnet-4-20250514</code>), or add providers in the Full YAML tab.</span>
+        <span class="text-sm">No active providers. Add API keys in the <a href="#" class="link font-medium" onclick="switchTabByName(event, 'tab-keys')">API Keys</a> tab to activate providers, or type a <a href="https://docs.litellm.ai/docs/providers" target="_blank" class="link">litellm model ID</a> directly.</span>
       </div>
       {% endif %}
       {% for tier_num in [1, 2, 3] %}
       {% set tier = config.tiers.get(tier_num, {}) %}
+      {% set saved_model = tier.get('model', '') %}
+      {% set model_inactive = saved_model and saved_model not in all_models %}
       <div class="grid grid-cols-1 md:grid-cols-[140px_1fr_1fr] gap-3 items-center mb-4 pb-4 {% if not loop.last %}border-b border-base-300{% endif %}">
         <div class="font-bold text-sm">
           Tier {{ tier_num }}
@@ -47,14 +51,21 @@
         </div>
         <div class="form-control">
           {% if all_models %}
-          <select class="select select-bordered select-sm tier-model" data-tier="{{ tier_num }}">
+          <select class="select select-bordered select-sm tier-model {% if model_inactive %}border-warning{% endif %}" data-tier="{{ tier_num }}">
+            {% if model_inactive %}
+            <option value="{{ saved_model }}" selected>{{ saved_model }} ⚠</option>
+            {% endif %}
             {% for m in all_models %}
-            <option value="{{ m }}" {% if tier.get('model') == m %}selected{% endif %}>{{ m }}</option>
+            <option value="{{ m }}" {% if saved_model == m %}selected{% endif %}>{{ m }}</option>
             {% endfor %}
           </select>
-          <label class="label py-0"><span class="label-text-alt opacity-50">Provider/Model</span></label>
+          {% if model_inactive %}
+          <label class="label py-0"><span class="label-text-alt text-warning">Inactive provider — add key in <a href="#" class="link" onclick="switchTabByName(event, 'tab-keys')">API Keys</a></span></label>
           {% else %}
-          <input type="text" class="input input-bordered input-sm tier-model" data-tier="{{ tier_num }}" value="{{ tier.get('model', '') }}" placeholder="e.g. openai/gpt-4o">
+          <label class="label py-0"><span class="label-text-alt opacity-50">Provider/Model (active only)</span></label>
+          {% endif %}
+          {% else %}
+          <input type="text" class="input input-bordered input-sm tier-model" data-tier="{{ tier_num }}" value="{{ saved_model }}" placeholder="e.g. openai/gpt-4o">
           <label class="label py-0"><span class="label-text-alt opacity-50">Provider/Model</span></label>
           {% endif %}
         </div>
@@ -104,22 +115,31 @@
   <div class="card bg-base-200 mb-4">
     <div class="card-body">
       <h2 class="card-title text-sm uppercase tracking-wider opacity-60 mb-2">Provider Catalog</h2>
-      <p class="text-xs opacity-50 mb-4">Read-only reference of configured providers and their models. To add or remove providers, edit the Full YAML tab. Set the matching API key as an environment variable to use a provider.</p>
-      {% if config.providers %}
-      {% for prov_name, prov in config.providers.items() %}
-      <div class="collapse collapse-arrow bg-base-300 mb-2">
-        <input type="checkbox" {% if loop.first %}checked{% endif %}>
-        <div class="collapse-title font-medium">
-          {{ prov_name }}
-          <span class="badge badge-sm badge-ghost ml-2">{{ prov.get('env_key', '') }}</span>
-          <span class="badge badge-sm badge-primary ml-1">{{ prov.get('models', []) | length }} models</span>
+      <p class="text-xs opacity-50 mb-4">Providers with a configured API key are <span class="text-success font-medium">active</span> and their models appear in Tier dropdowns. Add keys in the <a href="#" class="link" onclick="switchTabByName(event, 'tab-keys')">API Keys</a> tab.</p>
+      {% if providers_with_status %}
+      {% for p in providers_with_status %}
+      <div class="collapse collapse-arrow mb-2 {% if p.active %}bg-base-300{% else %}bg-base-300 opacity-60{% endif %}">
+        <input type="checkbox" {% if loop.first and p.active %}checked{% endif %}>
+        <div class="collapse-title font-medium flex items-center gap-2">
+          {{ p.name }}
+          <span class="badge badge-sm badge-ghost font-mono">{{ p.env_key }}</span>
+          {% if p.active %}
+          <span class="badge badge-sm badge-success">Active</span>
+          <span class="badge badge-sm badge-primary">{{ p.models | length }} models</span>
+          {% else %}
+          <span class="badge badge-sm badge-ghost">No key</span>
+          <a href="#" class="badge badge-sm badge-outline ml-auto" onclick="switchTabByName(event, 'tab-keys')">Set API key →</a>
+          {% endif %}
         </div>
         <div class="collapse-content">
+          {% if not p.active %}
+          <p class="text-xs opacity-50 mb-2">Add an API key in the API Keys tab to activate this provider.</p>
+          {% endif %}
           <div class="overflow-x-auto">
             <table class="table table-xs">
               <thead><tr><th>Model ID</th><th>Context</th><th>Note</th></tr></thead>
               <tbody>
-                {% for m in prov.get('models', []) %}
+                {% for m in p.models %}
                 <tr>
                   <td class="font-mono text-xs">{{ m.id }}</td>
                   <td>{{ '{:,}'.format(m.get('context_window', 0)) }}</td>
@@ -138,6 +158,103 @@
         <span class="text-sm">No providers configured. Switch to the Full YAML tab to add provider definitions, or type model IDs directly in the Tiers tab.</span>
       </div>
       {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Tab: API Keys -->
+<div id="tab-keys" class="cfg-panel hidden">
+  <div class="card bg-base-200 mb-4">
+    <div class="card-body">
+      <h2 class="card-title text-sm uppercase tracking-wider opacity-60 mb-2">API Keys</h2>
+      <div class="alert alert-warning mb-4">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+        <div>
+          <p class="text-sm">Keys are stored in <code class="font-mono text-xs">config/.env</code> — make sure this file is in your <code class="font-mono text-xs">.gitignore</code>. Keys are loaded into the environment on save and at server startup.</p>
+        </div>
+      </div>
+      {% if providers_with_status %}
+      <div class="overflow-x-auto">
+        <table class="table">
+          <thead>
+            <tr><th>Provider</th><th>Env Key</th><th>Status</th><th>Value</th></tr>
+          </thead>
+          <tbody>
+            {% for p in providers_with_status %}
+            <tr class="{% if not p.active %}opacity-60{% endif %}">
+              <td class="font-medium">{{ p.name }}</td>
+              <td><span class="badge badge-ghost font-mono text-xs">{{ p.env_key }}</span></td>
+              <td>
+                {% if p.active %}
+                <span class="badge badge-success badge-sm">Active</span>
+                {% else %}
+                <span class="badge badge-ghost badge-sm">No key</span>
+                {% endif %}
+              </td>
+              <td>
+                <input type="password" class="input input-bordered input-sm w-64 api-key-input"
+                  data-env-key="{{ p.env_key }}"
+                  placeholder="{% if p.active %}(set — leave blank to keep){% else %}Paste API key…{% endif %}">
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="alert alert-info">
+        <span class="text-sm">No providers in config. Add providers in the Full YAML tab first, then return here to set their keys.</span>
+      </div>
+      {% endif %}
+      <div class="flex items-center gap-3 mt-4">
+        <button class="btn btn-primary btn-sm" onclick="saveKeys()">💾 Save Keys</button>
+        <span id="keys-status" class="text-sm opacity-60"></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Tab: Project -->
+<div id="tab-project" class="cfg-panel hidden">
+  <div class="max-w-2xl">
+    <div class="card bg-base-200 mb-6">
+      <div class="card-body">
+        <h2 class="card-title text-sm uppercase tracking-wider opacity-60 mb-2">Project Path</h2>
+        <p class="text-xs opacity-50 mb-4">Point this to the root of your game project. Used for engine auto-detection, file output, and to give agents project-specific context.</p>
+        <div class="form-control">
+          <label class="label"><span class="label-text">Absolute path to game project</span></label>
+          <input type="text" id="project-path" class="input input-bordered font-mono" value="{{ settings.project_path }}" placeholder="/home/user/my-game-project">
+          <label class="label"><span class="label-text-alt opacity-50">Leave empty to use the current working directory</span></label>
+        </div>
+        <div class="flex items-center gap-3 mt-2">
+          <button class="btn btn-primary btn-sm" onclick="saveProject()">💾 Save</button>
+          <span id="project-status" class="text-sm opacity-60"></span>
+        </div>
+      </div>
+    </div>
+    <div class="card bg-base-200 mb-6">
+      <div class="card-body">
+        <h2 class="card-title text-sm uppercase tracking-wider opacity-60 mb-2">Engine Detection</h2>
+        <p class="text-xs opacity-50 mb-4">Automatically detects the game engine based on project files (e.g. <code>project.godot</code>, <code>ProjectSettings.asset</code>). Save the project path above to trigger detection.</p>
+        <div id="detection-result">
+          {% if detected_engine %}
+          <div class="alert alert-success">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <div>
+              <span class="font-bold">{{ detected_engine.name }}</span> detected
+              <span class="text-xs opacity-60 ml-2">(matched <code>{{ detected_engine.matched }}</code>)</span>
+            </div>
+          </div>
+          {% elif settings.project_path %}
+          <div class="alert alert-warning">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+            <span>No engine detected at <code class="text-xs">{{ settings.project_path }}</code>. You can still select an engine manually when running a plan.</span>
+          </div>
+          {% else %}
+          <p class="opacity-40 text-sm">Set a project path above to auto-detect your game engine.</p>
+          {% endif %}
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -193,15 +310,24 @@ function switchTab(evt, tabId) {
   activeTab = tabId;
 }
 
+function switchTabByName(evt, tabId) {
+  evt.preventDefault();
+  // Find the tab button by matching onclick
+  var tabs = document.querySelectorAll('[role=tab]');
+  tabs.forEach(function(el) {
+    if (el.getAttribute('onclick') && el.getAttribute('onclick').indexOf(tabId) !== -1) {
+      el.click();
+    }
+  });
+}
+
 function buildYamlFromForm() {
-  // Parse current YAML to preserve providers and engine_overrides
   var current;
   try {
     current = jsyaml.load(window._getYaml ? window._getYaml() : document.getElementById('yaml-raw').value) || {};
   } catch(e) {
     current = {};
   }
-  // Update tiers
   current.tiers = {};
   document.querySelectorAll('.tier-model').forEach(function(el) {
     var tier = parseInt(el.dataset.tier);
@@ -209,7 +335,6 @@ function buildYamlFromForm() {
     var model = el.tagName === 'SELECT' ? el.value : el.value.trim();
     current.tiers[tier] = { model: model, description: desc ? desc.value : '' };
   });
-  // Update sprites
   current.sprites = {
     provider: document.getElementById('sprite-provider').value,
     model: document.getElementById('sprite-model').value,
@@ -222,7 +347,12 @@ function buildYamlFromForm() {
 }
 
 document.addEventListener('keydown', function(e) {
-  if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); saveConfig(); }
+  if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+    e.preventDefault();
+    if (activeTab === 'tab-keys') { saveKeys(); }
+    else if (activeTab === 'tab-project') { saveProject(); }
+    else { saveConfig(); }
+  }
 });
 
 async function saveConfig() {
@@ -251,5 +381,75 @@ async function saveConfig() {
   btn.disabled = false;
   btn.textContent = '💾 Save';
 }
+
+async function saveKeys() {
+  var status = document.getElementById('keys-status');
+  status.textContent = '⏳ Saving…';
+  var keys = {};
+  document.querySelectorAll('.api-key-input').forEach(function(el) {
+    var k = el.dataset.envKey;
+    var v = el.value.trim();
+    if (v) keys[k] = v;
+  });
+  if (Object.keys(keys).length === 0) {
+    status.textContent = 'No changes';
+    return;
+  }
+  var res = await fetch('/edit/config/keys', {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({keys: keys}),
+  });
+  if (res.ok) {
+    showToast('API keys saved', 'success');
+    status.textContent = '✓ Saved — reload to update active status';
+    document.querySelectorAll('.api-key-input').forEach(function(el) { el.value = ''; });
+  } else {
+    var err = await res.json();
+    showToast(err.detail || 'Save failed', 'error');
+    status.textContent = '✗ Error';
+  }
+}
+
+async function saveProject() {
+  var status = document.getElementById('project-status');
+  status.textContent = '⏳ Saving…';
+  var projectPath = document.getElementById('project-path').value.trim();
+  var content = window._getYaml ? window._getYaml() : document.getElementById('yaml-raw').value;
+  var res = await fetch('/edit/config', {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({content: content, project_path: projectPath}),
+  });
+  if (res.ok) {
+    var data = await res.json();
+    showToast('Project path saved', 'success');
+    status.textContent = '✓ Saved';
+    updateDetectionDisplay(data.detected_engine, projectPath);
+  } else {
+    var err = await res.json();
+    showToast(err.detail || 'Save failed', 'error');
+    status.textContent = '✗ Error';
+  }
+}
+
+function updateDetectionDisplay(detected, projectPath) {
+  var result = document.getElementById('detection-result');
+  if (detected) {
+    result.innerHTML = '<div class="alert alert-success">'
+      + '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>'
+      + '<div><span class="font-bold">' + detected.name + '</span> detected'
+      + ' <span class="text-xs opacity-60 ml-2">(matched <code>' + detected.matched + '</code>)</span></div>'
+      + '</div>';
+  } else if (projectPath) {
+    result.innerHTML = '<div class="alert alert-warning">'
+      + '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>'
+      + '<span>No engine detected at that path. You can still select an engine manually when running a plan.</span>'
+      + '</div>';
+  } else {
+    result.innerHTML = '<p class="opacity-40 text-sm">Set a project path above to auto-detect your game engine.</p>';
+  }
+}
 </script>
 {% endblock %}
+

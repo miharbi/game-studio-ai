@@ -70,3 +70,7 @@ python runner.py resume <run-id>
 ```
 
 Steps already in the database are skipped; execution continues from the first incomplete step.
+
+## Running plans from the web UI
+
+Open the Dashboard (`/`) and select a plan template from the dropdown. The plan picker only shows templates found in `plans/templates/`. The **Run** button is disabled when no model configuration is set — navigate to **Setup** to configure providers and API keys first.

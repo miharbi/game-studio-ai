@@ -193,50 +193,115 @@ class TestEditorEngines:
 
 
 class TestSettings:
-    def test_settings_page_200(self, client):
-        resp = client.get("/settings")
-        assert resp.status_code == 200
-        assert "Settings" in resp.text
-        assert "Project Path" in resp.text
+    def test_settings_redirects_to_config(self, client):
+        resp = client.get("/settings", follow_redirects=False)
+        assert resp.status_code == 301
+        assert "/edit/config" in resp.headers["location"]
 
-    def test_settings_save_and_load(self, client):
-        settings_path = Path("config/settings.yaml")
-        had_file = settings_path.exists()
-        original = settings_path.read_text() if had_file else None
+    def test_settings_put_redirects(self, client):
+        resp = client.put("/settings", json={"project_path": "/tmp/test"}, follow_redirects=False)
+        assert resp.status_code == 301
+        assert "/edit/config" in resp.headers["location"]
+
+
+class TestApiKeys:
+    def test_save_keys_unknown_key_rejected(self, client):
+        resp = client.put(
+            "/edit/config/keys",
+            json={"keys": {"TOTALLY_FAKE_KEY": "somevalue"}},
+        )
+        assert resp.status_code == 422
+
+    def test_save_keys_valid_writes_env(self, client):
+        dot_env_path = Path("config/.env")
+        had_file = dot_env_path.exists()
+        original = dot_env_path.read_text() if had_file else None
+        import os
+        prev = os.environ.get("GITHUB_TOKEN")
         try:
             resp = client.put(
-                "/settings",
-                json={"project_path": "/tmp/test-game"},
+                "/edit/config/keys",
+                json={"keys": {"GITHUB_TOKEN": "test-token-abc"}},
             )
             assert resp.status_code == 200
             assert resp.json()["status"] == "saved"
-
-            # Verify it loads back
-            resp = client.get("/settings")
-            assert resp.status_code == 200
-            assert "/tmp/test-game" in resp.text
+            assert dot_env_path.exists()
+            content = dot_env_path.read_text()
+            assert "GITHUB_TOKEN" in content
+            # Value must not appear in the response (security: never echo keys)
+            assert "test-token-abc" not in str(resp.json())
         finally:
             if original is not None:
-                settings_path.write_text(original)
-            elif settings_path.exists():
-                settings_path.unlink()
+                dot_env_path.write_text(original)
+            elif dot_env_path.exists():
+                dot_env_path.unlink()
+            if prev is None:
+                os.environ.pop("GITHUB_TOKEN", None)
+            else:
+                os.environ["GITHUB_TOKEN"] = prev
 
-    def test_settings_empty_path(self, client):
-        settings_path = Path("config/settings.yaml")
-        had_file = settings_path.exists()
-        original = settings_path.read_text() if had_file else None
+    def test_save_keys_empty_value_skipped(self, client):
+        dot_env_path = Path("config/.env")
+        had_file = dot_env_path.exists()
+        original = dot_env_path.read_text() if had_file else None
         try:
-            resp = client.put("/settings", json={"project_path": ""})
+            resp = client.put(
+                "/edit/config/keys",
+                json={"keys": {"GITHUB_TOKEN": ""}},
+            )
             assert resp.status_code == 200
-            assert resp.json()["detected_engine"] is None
+            assert resp.json()["updated"] == 0
         finally:
             if original is not None:
-                settings_path.write_text(original)
+                dot_env_path.write_text(original)
+            elif dot_env_path.exists():
+                dot_env_path.unlink()
+
+
+class TestProjectPath:
+    def test_config_save_with_project_path(self, client):
+        config_path = Path("config/models.yaml")
+        settings_path = Path("config/settings.yaml")
+        original_config = config_path.read_text()
+        had_settings = settings_path.exists()
+        original_settings = settings_path.read_text() if had_settings else None
+        try:
+            resp = client.put(
+                "/edit/config",
+                json={
+                    "content": "tiers:\n  1:\n    model: test\n",
+                    "project_path": "/tmp/no-such-game-dir",
+                },
+            )
+            assert resp.status_code == 200
+            data = resp.json()
+            assert data["status"] == "saved"
+            assert "detected_engine" in data
+            assert settings_path.exists()
+        finally:
+            config_path.write_text(original_config)
+            if original_settings is not None:
+                settings_path.write_text(original_settings)
             elif settings_path.exists():
                 settings_path.unlink()
 
+    def test_config_save_without_project_path_unchanged(self, client):
+        config_path = Path("config/models.yaml")
+        original_config = config_path.read_text()
+        try:
+            resp = client.put(
+                "/edit/config",
+                json={"content": "tiers:\n  1:\n    model: test\n"},
+            )
+            assert resp.status_code == 200
+            data = resp.json()
+            assert data["status"] == "saved"
+            assert "detected_engine" not in data
+        finally:
+            config_path.write_text(original_config)
 
-class TestDashboardSetupAlert:
+
+
     def test_dashboard_shows_setup_context(self, client):
         resp = client.get("/")
         assert resp.status_code == 200
