@@ -13,13 +13,23 @@
 </div>
 {% endif %}
 
+{% if no_active_providers %}
+<div class="alert alert-error mb-6">
+  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
+  <div>
+    <h3 class="font-bold">No API key configured</h3>
+    <p class="text-sm">Plans cannot run without an active provider. <a href="/edit/config#tab-keys" class="link font-semibold">Add an API key in Setup → API Keys</a> and reload this page.</p>
+  </div>
+</div>
+{% endif %}
+
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
   <!-- Run a plan -->
   <div class="card bg-base-200">
     <div class="card-body">
       <h2 class="card-title">Run a Plan</h2>
       <p class="text-xs opacity-50 mb-2">Select a plan template, choose an engine, and provide context to start an agent pipeline run.</p>
-      <form hx-post="/plans/run" hx-target="#run-result" hx-swap="innerHTML" class="flex flex-col gap-4">
+      <form hx-post="/plans/run" hx-target="#run-result" hx-swap="innerHTML" hx-ext="json-enc" class="flex flex-col gap-4">
         <div class="form-control">
           <label class="label"><span class="label-text">Plan template</span></label>
           <select name="plan" class="select select-bordered">
@@ -44,7 +54,7 @@
           <textarea name="input_text" rows="3" class="textarea textarea-bordered" placeholder="Describe the feature, level, or task..."></textarea>
           <label class="label"><span class="label-text-alt opacity-50">Free-form description passed to the first agent in the pipeline</span></label>
         </div>
-        <button class="btn btn-primary" type="submit" {% if setup_needed %}disabled{% endif %}>▶ Run</button>
+        <button class="btn btn-primary" type="submit" {% if setup_needed or no_active_providers %}disabled{% endif %}>&#9654; Run</button>
       </form>
       <div id="run-result" class="mt-3"></div>
     </div>
@@ -76,10 +86,24 @@
 <script>
   document.body.addEventListener('htmx:afterRequest', function(evt) {
     if (evt.detail.pathInfo && evt.detail.pathInfo.requestPath === '/plans/run') {
-      try {
-        const data = JSON.parse(evt.detail.xhr.responseText);
-        if (data.run_id) window.location.href = '/runs/' + data.run_id;
-      } catch(e) {}
+      var xhr = evt.detail.xhr;
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          var data = JSON.parse(xhr.responseText);
+          if (data.run_id) window.location.href = '/runs/' + data.run_id;
+        } catch(e) {}
+      } else {
+        var msg = 'Run failed.';
+        try {
+          var err = JSON.parse(xhr.responseText);
+          msg = err.detail || msg;
+        } catch(e) {}
+        document.getElementById('run-result').innerHTML =
+          '<div class="alert alert-error mt-2">'
+          + '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>'
+          + '<span>' + msg + ' <a href="/edit/config" class="link font-semibold">Go to Setup → API Keys</a></span>'
+          + '</div>';
+      }
     }
   });
 </script>

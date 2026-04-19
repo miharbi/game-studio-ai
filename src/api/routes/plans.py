@@ -2,10 +2,12 @@
 from __future__ import annotations
 
 import asyncio
+import os
 import threading
 from pathlib import Path
 from typing import Any, AsyncGenerator
 
+import yaml
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel
@@ -17,6 +19,7 @@ from src.state.db import DB
 router = APIRouter()
 
 _PLANS_DIR: Path = Path(__file__).resolve().parents[3] / "plans"
+_CONFIG_DIR: Path = Path(__file__).resolve().parents[3] / "config"
 
 # Sentinel value sent through the queue to signal run completion.
 _DONE_SENTINEL = "__STREAM_DONE__"
@@ -25,6 +28,22 @@ _DONE_SENTINEL = "__STREAM_DONE__"
 _active_executors: dict[str, PlanExecutor] = {}
 # Output queues keyed by run_id — bridges sync executor thread → async SSE
 _output_queues: dict[str, asyncio.Queue[str]] = {}
+
+
+def _has_active_provider() -> bool:
+    """Return True if at least one provider has its env_key set in the environment."""
+    config_path = _CONFIG_DIR / "models.yaml"
+    if not config_path.exists():
+        return False
+    try:
+        data = yaml.safe_load(config_path.read_text()) or {}
+    except Exception:
+        return False
+    for prov in data.get("providers", {}).values():
+        env_key = prov.get("env_key", "")
+        if env_key and os.environ.get(env_key):
+            return True
+    return False
 
 
 class RunRequest(BaseModel):
@@ -41,14 +60,13 @@ async def dashboard(request: Request) -> HTMLResponse:
     plans = sorted((_PLANS_DIR / "templates").glob("*.yaml"))
 
     # Detect if config is missing or incomplete
-    config_path = Path(__file__).resolve().parents[3] / "config" / "models.yaml"
+    config_path = _CONFIG_DIR / "models.yaml"
     setup_needed = False
     setup_reason = ""
     if not config_path.exists():
         setup_needed = True
         setup_reason = "No model configuration file found."
     else:
-        import yaml
         try:
             data = yaml.safe_load(config_path.read_text()) or {}
             tiers = data.get("tiers", {})
@@ -59,6 +77,8 @@ async def dashboard(request: Request) -> HTMLResponse:
             setup_needed = True
             setup_reason = "Model configuration file is invalid."
 
+    no_active_providers = not setup_needed and not _has_active_provider()
+
     return templates.TemplateResponse(
         request=request,
         name="dashboard.html",
@@ -67,6 +87,7 @@ async def dashboard(request: Request) -> HTMLResponse:
             "plans": [p.name for p in plans],
             "setup_needed": setup_needed,
             "setup_reason": setup_reason,
+            "no_active_providers": no_active_providers,
         },
     )
 
@@ -80,6 +101,13 @@ async def start_run(body: RunRequest) -> dict[str, str]:
     plan_path = _PLANS_DIR / "templates" / body.plan
     if not plan_path.exists():
         raise HTTPException(404, f"Plan not found: {body.plan}")
+
+    if not _has_active_provider():
+        raise HTTPException(
+            422,
+            "No API key is set for any provider. "
+            "Go to Setup → API Keys to add a key, then try again.",
+        )
 
     loop = asyncio.get_event_loop()
     q: asyncio.Queue[str] = asyncio.Queue()
