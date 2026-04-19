@@ -7,7 +7,7 @@ import yaml
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse
 
-router = APIRouter()
+router = APIRouter(tags=["Sprites"])
 
 _SPRITES_DIR = Path(__file__).resolve().parents[3] / "output" / "sprites"
 _APPROVED_DIR = Path(__file__).resolve().parents[3] / "output" / "approved"
@@ -27,7 +27,7 @@ def _get_sprite_config() -> dict:
         return defaults
 
 
-@router.get("/sprites", response_class=HTMLResponse)
+@router.get("/sprites", response_class=HTMLResponse, include_in_schema=False)
 async def sprite_gallery(request: Request) -> HTMLResponse:
     pending = sorted(_SPRITES_DIR.glob("*.png"))
     approved = sorted(_APPROVED_DIR.glob("*.png")) if _APPROVED_DIR.exists() else []
@@ -44,8 +44,13 @@ async def sprite_gallery(request: Request) -> HTMLResponse:
     )
 
 
-@router.post("/sprites/{name}/approve")
+@router.post(
+    "/sprites/{name}/approve",
+    summary="Approve a pending sprite",
+    response_description="Approval status and destination path",
+)
 async def approve_sprite(name: str) -> dict[str, str]:
+    """Move `name` from the pending sprites directory to `output/approved/`."""
     src = _SPRITES_DIR / name
     if not src.exists():
         raise HTTPException(404, f"Sprite '{name}' not found.")
@@ -55,8 +60,13 @@ async def approve_sprite(name: str) -> dict[str, str]:
     return {"status": "approved", "path": str(dst)}
 
 
-@router.post("/sprites/{name}/reject")
+@router.post(
+    "/sprites/{name}/reject",
+    summary="Reject and delete a pending sprite",
+    response_description="Rejection status",
+)
 async def reject_sprite(name: str) -> dict[str, str]:
+    """Permanently delete `name` from the pending sprites directory."""
     src = _SPRITES_DIR / name
     if not src.exists():
         raise HTTPException(404, f"Sprite '{name}' not found.")

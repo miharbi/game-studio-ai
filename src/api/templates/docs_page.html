@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ doc_title }} — Docs</title>
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@4/dist/full.min.css" rel="stylesheet" type="text/css" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked@12/marked.min.js"></script>
+  <style>
+    #doc-body h1 { font-size: 1.75rem; font-weight: 700; margin: 1.5rem 0 0.75rem; border-bottom: 1px solid oklch(var(--b3)); padding-bottom: 0.4rem; }
+    #doc-body h2 { font-size: 1.35rem; font-weight: 700; margin: 1.5rem 0 0.5rem; border-bottom: 1px solid oklch(var(--b3)); padding-bottom: 0.3rem; }
+    #doc-body h3 { font-size: 1.1rem; font-weight: 600; margin: 1.2rem 0 0.4rem; }
+    #doc-body p  { margin: 0.6rem 0; line-height: 1.7; }
+    #doc-body ul, #doc-body ol { margin: 0.5rem 0 0.5rem 1.5rem; }
+    #doc-body li { margin: 0.25rem 0; line-height: 1.6; }
+    #doc-body code { background: oklch(var(--b3)); padding: 0.15em 0.4em; border-radius: 0.25rem; font-size: 0.875em; font-family: ui-monospace, monospace; }
+    #doc-body pre  { background: oklch(var(--b3)); padding: 1rem; border-radius: 0.5rem; overflow-x: auto; margin: 0.75rem 0; }
+    #doc-body pre code { background: none; padding: 0; font-size: 0.875rem; }
+    #doc-body table { width: 100%; border-collapse: collapse; margin: 0.75rem 0; font-size: 0.9rem; }
+    #doc-body th { background: oklch(var(--b3)); text-align: left; padding: 0.4rem 0.75rem; font-weight: 600; border: 1px solid oklch(var(--b3)/50%); }
+    #doc-body td { padding: 0.4rem 0.75rem; border: 1px solid oklch(var(--b3)/50%); }
+    #doc-body tr:nth-child(even) td { background: oklch(var(--b2)); }
+    #doc-body a { color: oklch(var(--p)); text-decoration: underline; }
+    #doc-body blockquote { border-left: 3px solid oklch(var(--p)); padding-left: 1rem; opacity: 0.8; margin: 0.75rem 0; }
+    #doc-body hr { border-color: oklch(var(--b3)); margin: 1.5rem 0; }
+  </style>
+</head>
+<body class="min-h-screen bg-base-100 text-base-content">
+
+  <!-- Top bar -->
+  <header class="navbar bg-base-200 border-b border-base-300 sticky top-0 z-30 px-4 gap-4">
+    <a href="/" class="btn btn-ghost btn-sm gap-2 opacity-70 hover:opacity-100">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+      App
+    </a>
+    <div class="flex-1 flex items-center gap-2">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+      <span class="font-bold text-base">Game Studio AI — Docs</span>
+    </div>
+    <a href="/docs" target="_blank" rel="noopener" class="btn btn-ghost btn-sm gap-1 opacity-60 hover:opacity-100 text-xs">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+      Swagger UI
+    </a>
+    <select id="theme-select" class="select select-sm select-bordered" onchange="setTheme(this.value)">
+      <option value="dark">Dark</option>
+      <option value="light">Light</option>
+      <option value="night">Night</option>
+      <option value="corporate">Corporate</option>
+      <option value="dracula">Dracula</option>
+    </select>
+  </header>
+
+  <div class="flex min-h-[calc(100vh-4rem)]">
+
+    <!-- Docs sidebar -->
+    <nav class="hidden lg:flex flex-col w-56 bg-base-200 border-r border-base-300 p-4 gap-1 sticky top-16 h-[calc(100vh-4rem)] overflow-y-auto shrink-0">
+      <p class="text-xs uppercase tracking-wider opacity-50 font-semibold mb-2 px-2">Guides</p>
+      {% for slug, title in doc_nav.items() %}
+      <a href="/guide/{{ slug }}"
+         class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm hover:bg-base-300 transition-colors
+                {% if slug == doc_name %}bg-primary/10 text-primary font-semibold{% else %}opacity-75{% endif %}">
+        {{ title }}
+      </a>
+      {% endfor %}
+    </nav>
+
+    <!-- Mobile nav -->
+    <div class="lg:hidden w-full bg-base-200 border-b border-base-300 flex overflow-x-auto px-4 py-2 gap-2 sticky top-16 z-20">
+      {% for slug, title in doc_nav.items() %}
+      <a href="/guide/{{ slug }}"
+         class="btn btn-sm {% if slug == doc_name %}btn-primary{% else %}btn-ghost{% endif %} whitespace-nowrap">
+        {{ title }}
+      </a>
+      {% endfor %}
+    </div>
+
+    <!-- Content -->
+    <main class="flex-1 px-8 py-8 max-w-4xl">
+      <div id="doc-body"></div>
+    </main>
+
+  </div>
+
+  <script>
+    // Theme persistence
+    (function() {
+      var saved = localStorage.getItem('gs-theme') || 'dark';
+      document.documentElement.setAttribute('data-theme', saved);
+      var sel = document.getElementById('theme-select');
+      if (sel) sel.value = saved;
+    })();
+    function setTheme(t) {
+      document.documentElement.setAttribute('data-theme', t);
+      localStorage.setItem('gs-theme', t);
+    }
+    // Render markdown
+    var raw = {{ markdown_content | tojson }};
+    document.getElementById('doc-body').innerHTML = marked.parse(raw);
+  </script>
+</body>
+</html>

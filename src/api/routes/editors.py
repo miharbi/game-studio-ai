@@ -257,7 +257,7 @@ class PlanBody(BaseModel):
 # AGENTS
 # ═════════════════════════════════════════════════════════════════════════════
 
-@router.get("/agents", response_class=HTMLResponse)
+@router.get("/agents", response_class=HTMLResponse, include_in_schema=False)
 async def agents_list(request: Request) -> HTMLResponse:
     templates = request.app.state.templates
     agents = _list_agents()
@@ -267,7 +267,7 @@ async def agents_list(request: Request) -> HTMLResponse:
     )
 
 
-@router.get("/agents/{tier}/{filename}", response_class=HTMLResponse)
+@router.get("/agents/{tier}/{filename}", response_class=HTMLResponse, include_in_schema=False)
 async def agent_edit(request: Request, tier: str, filename: str) -> HTMLResponse:
     filename = _safe_name(filename)
     path = _AGENTS_DIR / tier / filename
@@ -288,8 +288,14 @@ async def agent_edit(request: Request, tier: str, filename: str) -> HTMLResponse
     )
 
 
-@router.put("/agents/{tier}/{filename}")
+@router.put(
+    "/agents/{tier}/{filename}",
+    tags=["Agents"],
+    summary="Save an agent persona file",
+    response_description="Save status and file path",
+)
 async def agent_save(tier: str, filename: str, body: AgentBody) -> dict[str, str]:
+    """Overwrite the Markdown agent persona file at `agents/{tier}/{filename}`."""
     filename = _safe_name(filename)
     path = _AGENTS_DIR / tier / filename
     if not path.exists():
@@ -298,8 +304,15 @@ async def agent_save(tier: str, filename: str, body: AgentBody) -> dict[str, str
     return {"status": "saved", "file": f"{tier}/{filename}"}
 
 
-@router.post("/agents/{tier}")
+@router.post(
+    "/agents/{tier}",
+    tags=["Agents"],
+    summary="Create a new agent persona file",
+    status_code=201,
+    response_description="Creation status and file path",
+)
 async def agent_create(tier: str, body: AgentBody) -> dict[str, str]:
+    """Create a new Markdown agent persona file in `agents/{tier}/`."""
     name = body.name.replace(" ", "_").lower()
     if not name.endswith(".md"):
         name += ".md"
@@ -314,8 +327,14 @@ async def agent_create(tier: str, body: AgentBody) -> dict[str, str]:
     return {"status": "created", "file": f"{tier}/{name}"}
 
 
-@router.delete("/agents/{tier}/{filename}")
+@router.delete(
+    "/agents/{tier}/{filename}",
+    tags=["Agents"],
+    summary="Delete an agent persona file",
+    response_description="Deletion status",
+)
 async def agent_delete(tier: str, filename: str) -> dict[str, str]:
+    """Permanently delete the agent persona file at `agents/{tier}/{filename}`."""
     filename = _safe_name(filename)
     path = _AGENTS_DIR / tier / filename
     if not path.exists():
@@ -332,7 +351,7 @@ def _list_plans() -> list[str]:
     return [f.name for f in sorted(_PLANS_DIR.glob("*.yaml"))]
 
 
-@router.get("/plans", response_class=HTMLResponse)
+@router.get("/plans", response_class=HTMLResponse, include_in_schema=False)
 async def plans_list(request: Request) -> HTMLResponse:
     templates = request.app.state.templates
     plans = _list_plans()
@@ -342,7 +361,7 @@ async def plans_list(request: Request) -> HTMLResponse:
     )
 
 
-@router.get("/plans/{filename}", response_class=HTMLResponse)
+@router.get("/plans/{filename}", response_class=HTMLResponse, include_in_schema=False)
 async def plan_edit(request: Request, filename: str) -> HTMLResponse:
     filename = _safe_name(filename)
     path = _PLANS_DIR / filename
@@ -363,8 +382,14 @@ async def plan_edit(request: Request, filename: str) -> HTMLResponse:
     )
 
 
-@router.put("/plans/{filename}")
+@router.put(
+    "/plans/{filename}",
+    tags=["Plans"],
+    summary="Save a plan template",
+    response_description="Save status and file name",
+)
 async def plan_save(filename: str, body: PlanBody) -> dict[str, str]:
+    """Overwrite the YAML plan template at `plans/templates/{filename}`."""
     filename = _safe_name(filename)
     path = _PLANS_DIR / filename
     if not path.exists():
@@ -378,8 +403,15 @@ async def plan_save(filename: str, body: PlanBody) -> dict[str, str]:
     return {"status": "saved", "file": filename}
 
 
-@router.post("/plans")
+@router.post(
+    "/plans",
+    tags=["Plans"],
+    summary="Create a new plan template",
+    status_code=201,
+    response_description="Creation status and file name",
+)
 async def plan_create(body: PlanBody) -> dict[str, str]:
+    """Create a new YAML plan template under `plans/templates/`."""
     name = body.task.replace(" ", "_").lower()
     if not name.endswith(".yaml"):
         name += ".yaml"
@@ -392,8 +424,14 @@ async def plan_create(body: PlanBody) -> dict[str, str]:
     return {"status": "created", "file": name}
 
 
-@router.delete("/plans/{filename}")
+@router.delete(
+    "/plans/{filename}",
+    tags=["Plans"],
+    summary="Delete a plan template",
+    response_description="Deletion status",
+)
 async def plan_delete(filename: str) -> dict[str, str]:
+    """Permanently delete the plan template at `plans/templates/{filename}`."""
     filename = _safe_name(filename)
     path = _PLANS_DIR / filename
     if not path.exists():
@@ -406,7 +444,7 @@ async def plan_delete(filename: str) -> dict[str, str]:
 # CONFIG — models.yaml
 # ═════════════════════════════════════════════════════════════════════════════
 
-@router.get("/config", response_class=HTMLResponse)
+@router.get("/config", response_class=HTMLResponse, include_in_schema=False)
 async def config_edit(request: Request) -> HTMLResponse:
     path = _CONFIG_DIR / "models.yaml"
     content = path.read_text() if path.exists() else ""
@@ -432,8 +470,15 @@ async def config_edit(request: Request) -> HTMLResponse:
     )
 
 
-@router.put("/config")
+@router.put(
+    "/config",
+    tags=["Config"],
+    summary="Save model configuration",
+    response_description="Save status, file name, and detected engine",
+)
 async def config_save(body: ConfigBody) -> dict:
+    """Validate and write `config/models.yaml`. Optionally update the project path
+    and return the auto-detected engine context for that path."""
     try:
         yaml.safe_load(body.content)
     except yaml.YAMLError as exc:
@@ -449,9 +494,15 @@ async def config_save(body: ConfigBody) -> dict:
     return result
 
 
-@router.put("/config/keys")
+@router.put(
+    "/config/keys",
+    tags=["Config"],
+    summary="Save API keys to .env",
+    response_description="Save status and count of updated keys",
+)
 async def config_save_keys(body: ConfigKeysBody) -> dict:
-    """Save API keys to config/.env — validates names, never echoes values."""
+    """Save API keys to `config/.env`. Only key names declared in `models.yaml`
+    providers are accepted. Key values are never echoed back."""
     # Collect known env_key names from models.yaml
     known_env_keys: set[str] = set()
     path = _CONFIG_DIR / "models.yaml"
@@ -493,7 +544,7 @@ def _list_engines() -> list[str]:
     return [f.name for f in sorted(_ENGINES_DIR.glob("*.yaml"))]
 
 
-@router.get("/engines", response_class=HTMLResponse)
+@router.get("/engines", response_class=HTMLResponse, include_in_schema=False)
 async def engines_list(request: Request) -> HTMLResponse:
     templates = request.app.state.templates
     engines = _list_engines()
@@ -503,7 +554,7 @@ async def engines_list(request: Request) -> HTMLResponse:
     )
 
 
-@router.get("/engines/{filename}", response_class=HTMLResponse)
+@router.get("/engines/{filename}", response_class=HTMLResponse, include_in_schema=False)
 async def engine_edit(request: Request, filename: str) -> HTMLResponse:
     filename = _safe_name(filename)
     path = _ENGINES_DIR / filename
@@ -522,8 +573,14 @@ async def engine_edit(request: Request, filename: str) -> HTMLResponse:
     )
 
 
-@router.put("/engines/{filename}")
+@router.put(
+    "/engines/{filename}",
+    tags=["Engines"],
+    summary="Save an engine config file",
+    response_description="Save status and file name",
+)
 async def engine_save(filename: str, body: FileBody) -> dict[str, str]:
+    """Validate and overwrite the engine YAML file at `config/engines/{filename}`."""
     filename = _safe_name(filename)
     path = _ENGINES_DIR / filename
     if not path.exists():
@@ -536,8 +593,15 @@ async def engine_save(filename: str, body: FileBody) -> dict[str, str]:
     return {"status": "saved", "file": filename}
 
 
-@router.post("/engines")
+@router.post(
+    "/engines",
+    tags=["Engines"],
+    summary="Create a new engine config file",
+    status_code=201,
+    response_description="Creation status and file name",
+)
 async def engine_create(body: RenameBody) -> dict[str, str]:
+    """Create a new engine context YAML file under `config/engines/`."""
     name = _safe_name(body.new_name if body.new_name.endswith(".yaml") else body.new_name + ".yaml")
     dest = _ENGINES_DIR / name
     if dest.exists():
@@ -550,8 +614,14 @@ async def engine_create(body: RenameBody) -> dict[str, str]:
     return {"status": "created", "file": name}
 
 
-@router.delete("/engines/{filename}")
+@router.delete(
+    "/engines/{filename}",
+    tags=["Engines"],
+    summary="Delete an engine config file",
+    response_description="Deletion status",
+)
 async def engine_delete(filename: str) -> dict[str, str]:
+    """Permanently delete the engine config at `config/engines/{filename}`."""
     filename = _safe_name(filename)
     path = _ENGINES_DIR / filename
     if not path.exists():

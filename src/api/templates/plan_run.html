@@ -32,7 +32,7 @@
          hx-swap="beforeend">
       {% for step in steps %}
       <div class="mb-2">
-        <strong class="text-primary">▶ {{ step.agent_name }} ({{ step.step_id }})</strong><br>
+        <strong class="text-primary flex items-center gap-1"><svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>{{ step.agent_name }} ({{ step.step_id }})</strong><br>
         {{ step.output[:600] }}{% if step.output|length > 600 %}…{% endif %}
         {% if not step.gate_approved %}
         <br><span class="text-error">Rejected: {{ step.gate_feedback }}</span>

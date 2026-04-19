@@ -16,7 +16,7 @@ from src.orchestrator.engine import PlanExecutor
 from src.orchestrator.gate import GateHandler
 from src.state.db import DB
 
-router = APIRouter()
+router = APIRouter(tags=["Runs"])
 
 _PLANS_DIR: Path = Path(__file__).resolve().parents[3] / "plans"
 _CONFIG_DIR: Path = Path(__file__).resolve().parents[3] / "config"
@@ -52,12 +52,21 @@ class RunRequest(BaseModel):
     input_text: str = ""
 
 
-@router.get("/", response_class=HTMLResponse)
+@router.get("/", response_class=HTMLResponse, include_in_schema=False)
 async def dashboard(request: Request) -> HTMLResponse:
     db = DB()
     runs = db.list_runs()
     templates = request.app.state.templates
-    plans = sorted((_PLANS_DIR / "templates").glob("*.yaml"))
+    plan_files = sorted((_PLANS_DIR / "templates").glob("*.yaml"))
+    plans = []
+    for pf in plan_files:
+        try:
+            data = yaml.safe_load(pf.read_text()) or {}
+            task = data.get("task") or pf.stem
+            label = task.replace("_", " ").title()
+        except Exception:
+            label = pf.stem.replace("_", " ").title()
+        plans.append({"file": pf.name, "label": label})
 
     # Detect if config is missing or incomplete
     config_path = _CONFIG_DIR / "models.yaml"
@@ -84,7 +93,7 @@ async def dashboard(request: Request) -> HTMLResponse:
         name="dashboard.html",
         context={
             "runs": runs,
-            "plans": [p.name for p in plans],
+            "plans": plans,
             "setup_needed": setup_needed,
             "setup_reason": setup_reason,
             "no_active_providers": no_active_providers,
@@ -92,8 +101,15 @@ async def dashboard(request: Request) -> HTMLResponse:
     )
 
 
-@router.post("/plans/run")
+@router.post(
+    "/plans/run",
+    summary="Start a plan run",
+    response_description="The new run's ID",
+)
 async def start_run(body: RunRequest) -> dict[str, str]:
+    """Validate the plan name, check that at least one LLM provider has an active API key,
+    then launch the plan executor in a background thread. Returns `{run_id}` immediately.
+    Connect to `GET /runs/{run_id}/stream` to receive live agent output via SSE."""
     # Prevent path traversal — plan name must be a plain filename
     if Path(body.plan).name != body.plan or "/" in body.plan or "\\" in body.plan:
         raise HTTPException(422, "Invalid plan name — must be a plain filename, no paths.")
@@ -149,8 +165,15 @@ async def start_run(body: RunRequest) -> dict[str, str]:
     return {"run_id": run_id}
 
 
-@router.get("/runs/{run_id}/stream")
+@router.get(
+    "/runs/{run_id}/stream",
+    summary="Stream run output (SSE)",
+    response_description="Server-Sent Events stream of agent text chunks",
+)
 async def stream_run(run_id: str, request: Request) -> StreamingResponse:
+    """Server-Sent Events stream for a live run. Each event contains a chunk of agent
+    output as HTML-safe text. The special `data: __DONE__` event signals completion.
+    Keep-alive comments (`: keep-alive`) are sent every 30 s while idle."""
     q = _output_queues.get(run_id)
     if q is None:
         raise HTTPException(404, f"Run '{run_id}' not found or not streaming.")
@@ -172,7 +195,7 @@ async def stream_run(run_id: str, request: Request) -> StreamingResponse:
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 
-@router.get("/runs/{run_id}", response_class=HTMLResponse)
+@router.get("/runs/{run_id}", response_class=HTMLResponse, include_in_schema=False)
 async def run_detail(run_id: str, request: Request) -> HTMLResponse:
     db = DB()
     run = db.get_run(run_id)

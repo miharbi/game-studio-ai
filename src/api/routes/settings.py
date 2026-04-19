@@ -7,11 +7,11 @@ from fastapi.responses import RedirectResponse
 router = APIRouter()
 
 
-@router.get("/settings")
+@router.get("/settings", include_in_schema=False)
 async def settings_redirect_get() -> RedirectResponse:
     return RedirectResponse(url="/edit/config", status_code=301)
 
 
-@router.put("/settings")
+@router.put("/settings", include_in_schema=False)
 async def settings_redirect_put() -> RedirectResponse:
     return RedirectResponse(url="/edit/config", status_code=301)

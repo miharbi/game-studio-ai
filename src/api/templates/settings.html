@@ -57,7 +57,7 @@ document.addEventListener('keydown', function(e) {
 
 async function saveSettings() {
   var status = document.getElementById('save-status');
-  status.textContent = '⏳ Saving…';
+  status.textContent = 'Saving…';
   var body = { project_path: document.getElementById('project-path').value };
   try {
     var res = await fetch('/settings', {
@@ -68,7 +68,7 @@ async function saveSettings() {
     if (res.ok) {
       var data = await res.json();
       showToast('Settings saved', 'success');
-      status.textContent = '✓ Saved';
+      status.textContent = 'Saved';
       // Update detection display
       var result = document.getElementById('detection-result');
       if (data.detected_engine) {
@@ -88,11 +88,11 @@ async function saveSettings() {
     } else {
       var err = await res.json();
       showToast(err.detail || 'Save failed', 'error');
-      status.textContent = '✗ Error';
+      status.textContent = 'Error';
     }
   } catch(e) {
     showToast('Network error', 'error');
-    status.textContent = '✗ Error';
+    status.textContent = 'Error';
   }
 }
 </script>

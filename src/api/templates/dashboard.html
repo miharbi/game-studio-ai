@@ -34,7 +34,7 @@
           <label class="label"><span class="label-text">Plan template</span></label>
           <select name="plan" class="select select-bordered">
             {% for p in plans %}
-            <option value="{{ p }}">{{ p }}</option>
+            <option value="{{ p.file }}">{{ p.label }}</option>
             {% endfor %}
           </select>
           <label class="label"><span class="label-text-alt opacity-50">The YAML plan that defines the agent pipeline steps</span></label>
