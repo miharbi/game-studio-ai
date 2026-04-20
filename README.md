@@ -1,6 +1,6 @@
 # Game Studio AI
 
-A tiered multi-agent orchestrator that runs a full AI game studio pipeline from your terminal or browser. Point it at a game project, pick a plan template, and a hierarchy of specialized AI agents — from Creative Director down to QA Tester — collaborates to design features, generate levels, write dialogue, review code, and produce engine-ready sprite specifications.
+A tiered multi-agent orchestrator that runs a full AI game studio pipeline from your terminal, browser, or native desktop window. Point it at a game project, pick a plan template, and a hierarchy of 28 specialized AI agents — from Creative Director down to QA Tester — collaborates to design features, generate levels, write dialogue, review code, and produce engine-ready sprite specifications.
 
 **Human-in-the-loop gates** pause the pipeline at critical checkpoints so you stay in control of every decision that matters.
 
@@ -22,7 +22,14 @@ python runner.py serve
 # 3. Run your first plan from the dashboard
 ```
 
-Or configure via environment variables directly:
+Or run as a **native desktop app** (no browser needed):
+
+```bash
+pip install -e ".[desktop]"
+python runner.py desktop
+```
+
+Or configure via environment variables and use the CLI directly:
 
 ```bash
 cp .env.example .env   # or use config/.env via the Setup page
@@ -36,44 +43,127 @@ python runner.py run --plan plans/templates/design_feature.yaml \
 
 ## Agent Hierarchy
 
-The studio has 28 agents organized into 3 tiers. Higher tiers own the creative and technical vision; lower tiers do the detailed implementation work.
+The studio has 28 agents organized into 3 tiers. Tier 1 owns vision and strategy, Tier 2 leads departments, and Tier 3 does the detailed implementation work.
 
-| Tier | Role | Reports to | Domain |
-|---|---|---|---|
-| **1** | `creative_director` | — | Creative vision and final approval |
-| **1** | `technical_director` | — | Architecture, security, platform constraints |
-| **1** | `producer` | — | Scope, coordination, risk |
-| **2** | `game_designer` | creative_director | Mechanics and game design specs |
-| **2** | `lead_programmer` | technical_director | Code standards and review |
-| **2** | `art_director` | creative_director | Visual style and asset specs |
-| **2** | `audio_director` | creative_director | Music and SFX direction |
-| **2** | `narrative_director` | creative_director | Story, lore, dialogue |
-| **2** | `qa_lead` | producer | Testing strategy |
-| **2** | `release_manager` | producer | Build and deployment |
-| **2** | `localization_lead` | narrative_director | Regional authenticity |
-| **3** | `gameplay_programmer` | lead_programmer | Player controller, mechanics |
-| **3** | `engine_programmer` | lead_programmer | Engine integration, autoloads |
-| **3** | `ai_programmer` | lead_programmer | Enemy AI, pathfinding |
-| **3** | `network_programmer` | lead_programmer | Multiplayer, sync |
-| **3** | `tools_programmer` | lead_programmer | Dev tooling, pipelines |
-| **3** | `ui_programmer` | lead_programmer | Menus, HUD |
-| **3** | `systems_designer` | game_designer | Progression, economy systems |
-| **3** | `level_designer` | game_designer | Level layout, wave composition |
-| **3** | `economy_designer` | systems_designer | Scoring, drop rates, rewards |
-| **3** | `technical_artist` | art_director | Sprite atlases, shaders, import |
-| **3** | `sound_designer` | audio_director | SFX implementation |
-| **3** | `writer` | narrative_director | Dialogue, UI copy |
-| **3** | `world_builder` | level_designer | Props, art direction, dressing |
-| **3** | `ux_designer` | game_designer | UX, onboarding, accessibility |
-| **3** | `prototyper` | game_designer | Rapid mechanic validation |
-| **3** | `qa_tester` | qa_lead | Functional testing, bug reports |
-| **3** | `performance_analyst` | technical_director | Profiling, optimization |
-| **3** | `devops_engineer` | technical_director | CI/CD, build pipelines |
-| **3** | `security_engineer` | technical_director | OWASP audits, data protection |
-| **3** | `accessibility_specialist` | ux_designer | WCAG compliance |
-| **3** | `live_ops_designer` | producer | Events, post-launch content |
-| **3** | `analytics_engineer` | producer | Telemetry, retention metrics |
-| **3** | `community_manager` | producer | Player feedback, comms |
+```text
+                         ┌─────────────────────┐
+             ┌───────────│  creative_director   │───────────┐
+             │           │  (creative vision)   │           │
+             │           └─────────────────────┘           │
+             │                     │                        │
+     ┌───────┴────────┐   ┌───────┴────────┐   ┌──────────┴──────────┐
+     │  game_designer  │   │  art_director   │   │  audio_director     │
+     │  (mechanics)    │   │  (visual style) │   │  (music & SFX)      │
+     └───────┬────────┘   └───────┬────────┘   └──────────┬──────────┘
+             │                     │                        │
+  ┌──────────┼──────────┐         │                        │
+  │          │          │   technical_artist          sound_designer
+  │          │          │   (atlases, shaders)        (SFX implementation)
+  │          │          │
+systems_  level_     ux_designer
+designer  designer   (UX, onboarding)
+  │         │              │
+economy_  world_     accessibility_
+designer  builder    specialist
+  │
+prototyper
+
+
+             ┌─────────────────────┐
+             │ technical_director   │
+             │ (architecture)       │
+             └─────────┬───────────┘
+                       │
+           ┌───────────┴───────────┐
+           │                       │
+     ┌─────┴──────┐       ┌───────┴────────┐
+     │ lead_       │       │ (direct reports)│
+     │ programmer  │       │                 │
+     └─────┬──────┘       └────────────────┘
+           │               performance_analyst
+    ┌──────┼──────────┐    devops_engineer
+    │      │          │    security_engineer
+    │      │          │
+gameplay_ engine_   ai_programmer
+programmer programmer network_programmer
+  tools_programmer   ui_programmer
+
+
+             ┌─────────────────────┐
+             │     producer        │
+             │  (scope & risk)     │
+             └─────────┬───────────┘
+                       │
+     ┌─────────┬───────┴───────┬────────────┐
+     │         │               │            │
+  qa_lead   release_      narrative_    (direct reports)
+     │      manager       director      live_ops_designer
+     │                       │          analytics_engineer
+  qa_tester             ┌────┴────┐     community_manager
+                        │         │
+                     writer  localization_
+                             lead
+```
+
+### All agents at a glance
+
+<details>
+<summary><strong>Tier 1 — Leadership</strong> (3 agents)</summary>
+
+| Agent | Domain |
+|---|---|
+| `creative_director` | Creative vision and final approval |
+| `technical_director` | Architecture, security, platform constraints |
+| `producer` | Scope, coordination, risk management |
+
+</details>
+
+<details>
+<summary><strong>Tier 2 — Department Leads</strong> (8 agents)</summary>
+
+| Agent | Reports to | Domain |
+|---|---|---|
+| `game_designer` | creative_director | Mechanics and game design specs |
+| `lead_programmer` | technical_director | Code standards and review |
+| `art_director` | creative_director | Visual style and asset specs |
+| `audio_director` | creative_director | Music and SFX direction |
+| `narrative_director` | creative_director | Story, lore, dialogue |
+| `qa_lead` | producer | Testing strategy |
+| `release_manager` | producer | Build and deployment |
+| `localization_lead` | narrative_director | Regional authenticity |
+
+</details>
+
+<details>
+<summary><strong>Tier 3 — Specialists</strong> (17 agents)</summary>
+
+| Agent | Reports to | Domain |
+|---|---|---|
+| `gameplay_programmer` | lead_programmer | Player controller, mechanics |
+| `engine_programmer` | lead_programmer | Engine integration, autoloads |
+| `ai_programmer` | lead_programmer | Enemy AI, pathfinding |
+| `network_programmer` | lead_programmer | Multiplayer, sync |
+| `tools_programmer` | lead_programmer | Dev tooling, pipelines |
+| `ui_programmer` | lead_programmer | Menus, HUD |
+| `systems_designer` | game_designer | Progression, economy systems |
+| `level_designer` | game_designer | Level layout, wave composition |
+| `economy_designer` | systems_designer | Scoring, drop rates, rewards |
+| `technical_artist` | art_director | Sprite atlases, shaders, import |
+| `sound_designer` | audio_director | SFX implementation |
+| `writer` | narrative_director | Dialogue, UI copy |
+| `world_builder` | level_designer | Props, art direction, dressing |
+| `ux_designer` | game_designer | UX, onboarding, accessibility |
+| `prototyper` | game_designer | Rapid mechanic validation |
+| `qa_tester` | qa_lead | Functional testing, bug reports |
+| `performance_analyst` | technical_director | Profiling, optimization |
+| `devops_engineer` | technical_director | CI/CD, build pipelines |
+| `security_engineer` | technical_director | OWASP audits, data protection |
+| `accessibility_specialist` | ux_designer | WCAG compliance |
+| `live_ops_designer` | producer | Events, post-launch content |
+| `analytics_engineer` | producer | Telemetry, retention metrics |
+| `community_manager` | producer | Player feedback, comms |
+
+</details>
 
 ---
 
@@ -146,8 +236,11 @@ python runner.py resume <run-id>
 # Auto-detect the engine in a project directory
 python runner.py detect-engine /path/to/project
 
-# Launch the web UI
+# Launch the web UI in a browser
 python runner.py serve [--host 0.0.0.0] [--port 8080]
+
+# Launch the web UI in a native desktop window
+python runner.py desktop [--host 127.0.0.1] [--port 8000]
 
 # List all registered agents
 python runner.py list-agents
@@ -161,9 +254,20 @@ python runner.py list-models
 
 ---
 
-## Web UI
+## Web UI & Desktop Mode
 
-The web interface provides:
+The interface is available as a **browser tab** (`serve`) or a **native desktop window** (`desktop`). Both use the same FastAPI + htmx UI — the desktop mode wraps it in a native OS window via [pywebview](https://pywebview.flowrl.com/).
+
+```bash
+# Browser mode
+python runner.py serve
+# Open http://localhost:8000
+
+# Desktop mode (requires: pip install -e ".[desktop]")
+python runner.py desktop
+```
+
+### Features
 
 - **Dashboard** — start a run, pick a plan template and engine, view recent runs; shows a setup alert when configuration is missing
 - **Run detail** — live-streamed agent output via Server-Sent Events, pipeline step indicators, gate approval panel
@@ -176,11 +280,6 @@ The web interface provides:
   - **Project** — set the game project path for engine auto-detection
   - **Full YAML** — raw `models.yaml` editor (CodeMirror 6 with textarea fallback)
 - **Agents / Plans / Engines** — in-browser editors with CodeMirror 6 and textarea fallback
-
-```bash
-python runner.py serve
-# Open http://localhost:8000
-```
 
 ---
 
@@ -301,6 +400,7 @@ Controls tier-to-model routing, the provider catalog (with `env_key` per provide
 |---|---|
 | LLM routing | [litellm](https://github.com/BerriAI/litellm) |
 | Web framework | [FastAPI](https://fastapi.tiangolo.com/) + [htmx 1.9](https://htmx.org/) |
+| Desktop window | [pywebview](https://pywebview.flowrl.com/) (optional) |
 | UI components | [DaisyUI 4](https://daisyui.com/) (MIT, CDN) + [Tailwind CSS](https://tailwindcss.com/) (CDN) |
 | Templates | Jinja2 |
 | In-browser editor | [CodeMirror 6](https://codemirror.net/) (ESM, `esm.sh`) with textarea fallback |
@@ -317,7 +417,7 @@ Controls tier-to-model routing, the provider catalog (with `env_key` per provide
 pytest tests/ -v
 ```
 
-All tests should pass without a live LLM connection — the test suite uses local fixtures and does not make API calls.
+All tests pass without a live LLM connection — the test suite uses local fixtures and makes no API calls.
 
 ---
 

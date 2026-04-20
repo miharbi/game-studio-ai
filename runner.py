@@ -87,6 +87,44 @@ def serve(
     uvicorn.run("src.api.main:app", host=host, port=port, reload=True)
 
 
+@app.command()
+def desktop(
+    host: str = typer.Option("127.0.0.1", "--host", help="Host to bind."),
+    port: int = typer.Option(8000, "--port", help="Port to bind."),
+) -> None:
+    """Launch the web UI in a native desktop window (requires pywebview)."""
+    import threading
+    import time
+
+    try:
+        import webview  # type: ignore[import]
+    except ImportError:
+        typer.echo('pywebview is not installed. Run: pip install -e ".[desktop]"')
+        raise typer.Exit(1)
+
+    import uvicorn
+    import httpx
+
+    url = f"http://{host}:{port}"
+
+    def _start_server() -> None:
+        uvicorn.run("src.api.main:app", host=host, port=port, log_level="warning")
+
+    server_thread = threading.Thread(target=_start_server, daemon=True)
+    server_thread.start()
+
+    # Wait for the server to be ready before opening the window.
+    for _ in range(50):
+        try:
+            httpx.get(url, timeout=0.5)
+            break
+        except (httpx.ConnectError, httpx.TimeoutException):
+            time.sleep(0.1)
+
+    webview.create_window("Game Studio AI", url, width=1280, height=800)
+    webview.start()
+
+
 @app.command(name="list-agents")
 def list_agents() -> None:
     """List all available agent definitions."""

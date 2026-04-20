@@ -29,6 +29,9 @@ dev = [
     "pytest-asyncio>=0.23",
     "pytest-mock>=3.14",
 ]
+desktop = [
+    "pywebview>=5.0",
+]
 
 [project.scripts]
 studio = "runner:app"
