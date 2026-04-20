@@ -18,6 +18,45 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+_VENDOR_ASSETS: list[tuple[str, str]] = [
+    # (filename in static/vendor/, source URL)
+    # Note: Tailwind Play CDN (cdn.tailwindcss.com) behaves differently when served
+    # from a non-CDN origin (dark-mode detection breaks). Always load it directly from CDN.
+    ("daisyui.min.css", "https://cdn.jsdelivr.net/npm/daisyui@4/dist/full.min.css"),
+    ("htmx.min.js", "https://unpkg.com/htmx.org@1.9.12/dist/htmx.min.js"),
+    ("htmx-json-enc.js", "https://unpkg.com/htmx.org@1.9.12/dist/ext/json-enc.js"),
+    ("marked.min.js", "https://cdn.jsdelivr.net/npm/marked@12/marked.min.js"),
+    ("sortable.min.js", "https://cdn.jsdelivr.net/npm/sortablejs@1/Sortable.min.js"),
+    ("js-yaml.min.js", "https://cdn.jsdelivr.net/npm/js-yaml@4/dist/js-yaml.min.js"),
+]
+
+
+def _ensure_vendor_assets() -> None:
+    """Download vendor CSS/JS files into static/vendor/ for offline desktop use.
+
+    Files that already exist are skipped. Failures are silently ignored so the
+    app falls back to CDN on the next request.
+    """
+    import httpx
+
+    vendor_dir = Path(__file__).resolve().parent / "src" / "api" / "static" / "vendor"
+    vendor_dir.mkdir(parents=True, exist_ok=True)
+
+    missing = [(name, url) for name, url in _VENDOR_ASSETS if not (vendor_dir / name).exists()]
+    if not missing:
+        return
+
+    import typer
+    typer.echo(f"[desktop] Downloading {len(missing)} vendor asset(s) for offline use…")
+    for filename, url in missing:
+        try:
+            resp = httpx.get(url, follow_redirects=True, timeout=30)
+            resp.raise_for_status()
+            (vendor_dir / filename).write_bytes(resp.content)
+            typer.echo(f"  ✓ {filename}")
+        except Exception as exc:  # noqa: BLE001
+            typer.echo(f"  ✗ {filename} ({exc}) — will use CDN fallback")
+
 try:
     from dotenv import load_dotenv  # type: ignore[import]
     load_dotenv(Path(__file__).resolve().parent / ".env")
@@ -93,8 +132,26 @@ def desktop(
     port: int = typer.Option(8000, "--port", help="Port to bind."),
 ) -> None:
     """Launch the web UI in a native desktop window (requires pywebview)."""
+    import os
     import threading
     import time
+
+    # On Linux with NVIDIA drivers the pip-bundled Qt Mesa GLX conflicts with
+    # the system GLX server. Disabling Qt's GLX/EGL integration for the xcb
+    # platform plugin lets the window open while WebEngine still renders via
+    # its own Chromium GPU path (or software fallback).
+    os.environ.setdefault("QT_XCB_GL_INTEGRATION", "none")
+
+    # Allow QtWebEngine's Chromium renderer to load CDN resources (CSS/JS).
+    # Without --no-sandbox the sandboxed renderer process is blocked from
+    # making network requests when GL integration is disabled.
+    os.environ.setdefault(
+        "QTWEBENGINE_CHROMIUM_FLAGS",
+        "--no-sandbox --disable-gpu-sandbox",
+    )
+
+    # Download vendor assets so the UI works fully offline inside QtWebEngine.
+    _ensure_vendor_assets()
 
     try:
         import webview  # type: ignore[import]

@@ -31,6 +31,9 @@ dev = [
 ]
 desktop = [
     "pywebview>=5.0",
+    "PyQt5>=5.15",
+    "PyQtWebEngine>=5.15",
+    "qtpy>=2.0",
 ]
 
 [project.scripts]

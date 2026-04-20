@@ -74,6 +74,11 @@ app.mount(
 
 templates = Jinja2Templates(directory=str(_BASE_DIR / "templates"))
 
+# Tell templates whether vendor assets are cached locally (desktop mode).
+# The desktop command downloads them before starting the server.
+_vendor_dir = _BASE_DIR / "static" / "vendor"
+templates.env.globals["local_assets"] = _vendor_dir.is_dir() and any(_vendor_dir.iterdir())
+
 # Expose templates to routes
 app.state.templates = templates
 

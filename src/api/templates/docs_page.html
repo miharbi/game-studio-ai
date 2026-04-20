@@ -4,9 +4,24 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{{ doc_title }} — Docs</title>
+  {% if local_assets %}
+  <link href="/static/vendor/daisyui.min.css" rel="stylesheet" type="text/css" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="/static/vendor/marked.min.js"></script>
+  {% else %}
   <link href="https://cdn.jsdelivr.net/npm/daisyui@4/dist/full.min.css" rel="stylesheet" type="text/css" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked@12/marked.min.js"></script>
+  {% endif %}
+  <!-- DaisyUI v4 fallback hex colors are gated behind @media (prefers-color-scheme:dark).
+       Re-scope them under [data-theme] so they apply in Qt WebEngine / any light-reporting UA. -->
+  <style>
+    [data-theme=dark]     { --fallback-b1:#1d232a; --fallback-b2:#191e24; --fallback-b3:#15191e; --fallback-bc:#a6adbb }
+    [data-theme=night]    { --fallback-b1:#0f172a; --fallback-b2:#0c1425; --fallback-b3:#0a1120; --fallback-bc:#c8cbd0 }
+    [data-theme=dracula]  { --fallback-b1:#282a36; --fallback-b2:#232530; --fallback-b3:#1f202a; --fallback-bc:#f8f8f2 }
+    [data-theme=business] { --fallback-b1:#202020; --fallback-b2:#1c1c1c; --fallback-b3:#181818; --fallback-bc:#cdcdcd }
+    [data-theme=coffee]   { --fallback-b1:#20161f; --fallback-b2:#1c131b; --fallback-b3:#181017; --fallback-bc:#c59f60 }
+  </style>
   <style>
     #doc-body h1 { font-size: 1.75rem; font-weight: 700; margin: 1.5rem 0 0.75rem; border-bottom: 1px solid oklch(var(--b3)); padding-bottom: 0.4rem; }
     #doc-body h2 { font-size: 1.35rem; font-weight: 700; margin: 1.5rem 0 0.5rem; border-bottom: 1px solid oklch(var(--b3)); padding-bottom: 0.3rem; }
