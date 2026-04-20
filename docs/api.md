@@ -4,6 +4,20 @@ Interactive documentation is available at **`/docs`** (Swagger UI) and **`/redoc
 
 Only JSON endpoints are listed below. HTML UI routes (`/`, `/sprites`, `/edit/*`, `/runs/*`) are excluded.
 
+For installation and first-time app setup, start with [Project Quick Start](quick-start.md).
+
+---
+
+## Using the UI vs the API
+
+Most day-to-day work is easier from the HTML UI:
+
+- Use the **Dashboard** to start runs and review gate decisions
+- Use **Sprites** to approve or reject generated images
+- Use **Agents**, **Plans**, **Engines**, and **Setup** to edit project data
+
+Use the API when you want to automate the app from another tool, script custom integrations, or test behavior outside the built-in UI.
+
 ---
 
 ## Runs
@@ -14,24 +28,24 @@ Start plan runs, stream live agent output via SSE, and resolve gate checkpoints.
 
 Validates the plan, checks that at least one LLM provider has an active API key, then launches the plan executor in a background thread.
 
-**Request body** (`application/json`)
+#### Request Body for `POST /plans/run` (`application/json`)
 
 | Field | Type | Required | Description |
-|---|---|---|---|
+| ----- | ---- | -------- | ----------- |
 | `plan` | string | yes | Plan template filename (e.g. `design_feature.yaml`) |
 | `engine` | string | no | Engine override (e.g. `unity`). Empty = auto-detect from project path |
 | `input_text` | string | no | Context passed to the first agent step |
 
-**Response `200`**
+#### Response `200` for `POST /plans/run`
 
 ```json
 { "run_id": "abc123" }
 ```
 
-**Errors**
+#### Errors for `POST /plans/run`
 
 | Code | Reason |
-|---|---|
+| ---- | ------ |
 | `404` | Plan file not found |
 | `422` | No active LLM provider — add an API key in Setup |
 
@@ -45,13 +59,15 @@ Server-Sent Events stream for a live run. Connect with `EventSource` or `hx-sse`
 - `data: __DONE__` signals completion.
 - Keep-alive comments (`: keep-alive`) are sent every 30 s while idle.
 
-**Path params**
+#### Path Params for `GET /runs/{run_id}/stream`
 
 | Param | Type | Description |
-|---|---|---|
+| ----- | ---- | ----------- |
 | `run_id` | string | Run ID returned by `POST /plans/run` |
 
-**Response** — `text/event-stream`
+#### Response for `GET /runs/{run_id}/stream`
+
+`text/event-stream`
 
 ---
 
@@ -59,20 +75,20 @@ Server-Sent Events stream for a live run. Connect with `EventSource` or `hx-sse`
 
 Approve or reject a `human_review` gate. Approved gates let the pipeline continue; rejected gates halt the run and the agent receives the feedback string.
 
-**Path params**
+#### Path Params for `POST /runs/{run_id}/gate`
 
 | Param | Type | Description |
-|---|---|---|
+| ----- | ---- | ----------- |
 | `run_id` | string | Run ID |
 
-**Request body** (`application/json`)
+#### Request Body for `POST /runs/{run_id}/gate` (`application/json`)
 
 | Field | Type | Required | Description |
-|---|---|---|---|
+| ----- | ---- | -------- | ----------- |
 | `approved` | boolean | yes | `true` to approve, `false` to reject |
 | `feedback` | string | no | Rejection reason sent back to the agent |
 
-**Response `200`**
+#### Response `200` for `POST /runs/{run_id}/gate`
 
 ```json
 { "status": "approved", "run_id": "abc123" }
@@ -88,37 +104,41 @@ Pending sprites live in `output/sprites/`. Approved sprites are moved to `output
 
 ### `POST /sprites/{name}/approve` — Approve a pending sprite
 
-**Path params**
+#### Path Params for `POST /sprites/{name}/approve`
 
 | Param | Type | Description |
-|---|---|---|
+| ----- | ---- | ----------- |
 | `name` | string | Sprite filename (e.g. `hero_idle.png`) |
 
-**Response `200`**
+#### Response `200` for `POST /sprites/{name}/approve`
 
 ```json
 { "status": "approved", "path": "/absolute/path/to/output/approved/hero_idle.png" }
 ```
 
-**Errors** — `404` if sprite not found.
+#### Errors for `POST /sprites/{name}/approve`
+
+`404` if sprite not found.
 
 ---
 
 ### `POST /sprites/{name}/reject` — Reject and delete a pending sprite
 
-**Path params**
+#### Path Params for `POST /sprites/{name}/reject`
 
 | Param | Type | Description |
-|---|---|---|
+| ----- | ---- | ----------- |
 | `name` | string | Sprite filename |
 
-**Response `200`**
+#### Response `200` for `POST /sprites/{name}/reject`
 
 ```json
 { "status": "rejected", "name": "hero_idle.png" }
 ```
 
-**Errors** — `404` if sprite not found.
+#### Errors for `POST /sprites/{name}/reject`
+
+`404` if sprite not found.
 
 ---
 
@@ -128,17 +148,17 @@ CRUD for agent persona Markdown files stored under `agents/{tier}/`.
 
 ### `PUT /edit/agents/{tier}/{filename}` — Save an agent persona file
 
-**Path params**
+#### Path Params for `PUT /edit/agents/{tier}/{filename}`
 
 | Param | Type | Description |
-|---|---|---|
+| ----- | ---- | ----------- |
 | `tier` | string | `tier1`, `tier2`, or `tier3` |
 | `filename` | string | e.g. `creative_director.md` |
 
-**Request body** (`application/json`)
+#### Request Body for `PUT /edit/agents/{tier}/{filename}` (`application/json`)
 
 | Field | Type | Description |
-|---|---|---|
+| ----- | ---- | ----------- |
 | `name` | string | Agent display name |
 | `tier` | integer | 1–3 |
 | `reports_to` | string | Parent agent name |
@@ -146,7 +166,7 @@ CRUD for agent persona Markdown files stored under `agents/{tier}/`.
 | `model_override` | string | Optional model override |
 | `body` | string | Markdown body content |
 
-**Response `200`**
+#### Response `200` for `PUT /edit/agents/{tier}/{filename}`
 
 ```json
 { "status": "saved", "file": "tier1/creative_director.md" }
@@ -156,29 +176,38 @@ CRUD for agent persona Markdown files stored under `agents/{tier}/`.
 
 ### `POST /edit/agents/{tier}` — Create a new agent persona file
 
-**Path params** — `tier`: `tier1`, `tier2`, or `tier3`.
+#### Path Params for `POST /edit/agents/{tier}`
 
-**Request body** — same schema as `PUT` above.
+- `tier`: `tier1`, `tier2`, or `tier3`
 
-**Response `201`**
+#### Request Body for `POST /edit/agents/{tier}`
+
+Same schema as `PUT` above.
+
+#### Response `201` for `POST /edit/agents/{tier}`
 
 ```json
 { "status": "created", "file": "tier2/my_agent.md" }
 ```
 
-**Errors** — `409` if the agent already exists, `422` if the tier directory is invalid.
+#### Errors for `POST /edit/agents/{tier}`
+
+- `409` if the agent already exists
+- `422` if the tier directory is invalid
 
 ---
 
 ### `DELETE /edit/agents/{tier}/{filename}` — Delete an agent persona file
 
-**Response `200`**
+#### Response `200` for `DELETE /edit/agents/{tier}/{filename}`
 
 ```json
 { "status": "deleted", "file": "tier3/my_agent.md" }
 ```
 
-**Errors** — `404` if not found.
+#### Errors for `DELETE /edit/agents/{tier}/{filename}`
+
+`404` if not found.
 
 ---
 
@@ -188,12 +217,14 @@ CRUD for plan template YAML files stored under `plans/templates/`.
 
 ### `PUT /edit/plans/{filename}` — Save a plan template
 
-**Path params** — `filename`: e.g. `design_feature.yaml`.
+#### Path Params for `PUT /edit/plans/{filename}`
 
-**Request body** (`application/json`)
+- `filename`: e.g. `design_feature.yaml`
+
+#### Request Body for `PUT /edit/plans/{filename}` (`application/json`)
 
 | Field | Type | Description |
-|---|---|---|
+| ----- | ---- | ----------- |
 | `task` | string | Internal task identifier |
 | `description` | string | Human-readable description |
 | `engine` | string | Engine override or empty |
@@ -203,7 +234,7 @@ CRUD for plan template YAML files stored under `plans/templates/`.
 Each step object:
 
 | Field | Type | Description |
-|---|---|---|
+| ----- | ---- | ----------- |
 | `id` | string | Unique step identifier |
 | `agent` | string | Agent filename stem |
 | `tier` | integer | 1–3 |
@@ -212,7 +243,7 @@ Each step object:
 | `depends_on` | string | Step ID this step waits for |
 | `validate_as` | string | Output schema type for validation |
 
-**Response `200`**
+#### Response `200` for `PUT /edit/plans/{filename}`
 
 ```json
 { "status": "saved", "file": "design_feature.yaml" }
@@ -222,27 +253,33 @@ Each step object:
 
 ### `POST /edit/plans` — Create a new plan template
 
-**Request body** — same schema as `PUT` above.
+#### Request Body for `POST /edit/plans`
 
-**Response `201`**
+Same schema as `PUT` above.
+
+#### Response `201` for `POST /edit/plans`
 
 ```json
 { "status": "created", "file": "my_plan.yaml" }
 ```
 
-**Errors** — `409` if the plan already exists.
+#### Errors for `POST /edit/plans`
+
+`409` if the plan already exists.
 
 ---
 
 ### `DELETE /edit/plans/{filename}` — Delete a plan template
 
-**Response `200`**
+#### Response `200` for `DELETE /edit/plans/{filename}`
 
 ```json
 { "status": "deleted", "file": "my_plan.yaml" }
 ```
 
-**Errors** — `404` if not found.
+#### Errors for `DELETE /edit/plans/{filename}`
+
+`404` if not found.
 
 ---
 
@@ -254,14 +291,14 @@ Read and write `config/models.yaml` (model routing) and `config/.env` (API keys)
 
 Validates the YAML before writing. Optionally updates the project path in `config/settings.yaml` and returns auto-detected engine context.
 
-**Request body** (`application/json`)
+#### Request Body for `PUT /edit/config` (`application/json`)
 
 | Field | Type | Description |
-|---|---|---|
+| ----- | ---- | ----------- |
 | `content` | string | Full `models.yaml` content |
 | `project_path` | string \| null | Absolute path to the game project root |
 
-**Response `200`**
+#### Response `200` for `PUT /edit/config`
 
 ```json
 {
@@ -279,19 +316,21 @@ Validates the YAML before writing. Optionally updates the project path in `confi
 
 Merges the provided keys into `config/.env`. Only key names declared in `models.yaml` providers (`env_key` field) are accepted. Values are never echoed back in responses.
 
-**Request body** (`application/json`)
+#### Request Body for `PUT /edit/config/keys` (`application/json`)
 
 | Field | Type | Description |
-|---|---|---|
+| ----- | ---- | ----------- |
 | `keys` | object | `{ "OPENAI_API_KEY": "sk-..." }` |
 
-**Response `200`**
+#### Response `200` for `PUT /edit/config/keys`
 
 ```json
 { "status": "saved", "updated": 1 }
 ```
 
-**Errors** — `422` if a key name is not declared in `models.yaml`.
+#### Errors for `PUT /edit/config/keys`
+
+`422` if a key name is not declared in `models.yaml`.
 
 ---
 
@@ -301,15 +340,17 @@ CRUD for engine context YAML files stored under `config/engines/`.
 
 ### `PUT /edit/engines/{filename}` — Save an engine config file
 
-**Path params** — `filename`: e.g. `unity.yaml`.
+#### Path Params for `PUT /edit/engines/{filename}`
 
-**Request body** (`application/json`)
+- `filename`: e.g. `unity.yaml`
+
+#### Request Body for `PUT /edit/engines/{filename}` (`application/json`)
 
 | Field | Type | Description |
-|---|---|---|
+| ----- | ---- | ----------- |
 | `content` | string | Full YAML content |
 
-**Response `200`**
+#### Response `200` for `PUT /edit/engines/{filename}`
 
 ```json
 { "status": "saved", "file": "unity.yaml" }
@@ -319,29 +360,33 @@ CRUD for engine context YAML files stored under `config/engines/`.
 
 ### `POST /edit/engines` — Create a new engine config file
 
-**Request body** (`application/json`)
+#### Request Body for `POST /edit/engines` (`application/json`)
 
 | Field | Type | Description |
-|---|---|---|
+| ----- | ---- | ----------- |
 | `new_name` | string | Engine filename (`.yaml` appended if missing) |
 | `content` | string | Initial YAML content |
 
-**Response `201`**
+#### Response `201` for `POST /edit/engines`
 
 ```json
 { "status": "created", "file": "my_engine.yaml" }
 ```
 
-**Errors** — `409` if the file already exists.
+#### Errors for `POST /edit/engines`
+
+`409` if the file already exists.
 
 ---
 
 ### `DELETE /edit/engines/{filename}` — Delete an engine config file
 
-**Response `200`**
+#### Response `200` for `DELETE /edit/engines/{filename}`
 
 ```json
 { "status": "deleted", "file": "my_engine.yaml" }
 ```
 
-**Errors** — `404` if not found.
+#### Errors for `DELETE /edit/engines/{filename}`
+
+`404` if not found.

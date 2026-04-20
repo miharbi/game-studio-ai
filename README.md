@@ -8,6 +8,8 @@ A tiered multi-agent orchestrator that runs a full AI game studio pipeline from 
 
 ## Quick Start
 
+The canonical onboarding guide lives in [docs/quick-start.md](docs/quick-start.md).
+
 ```bash
 # 1. Clone and install
 git clone <repo-url> game-studio-ai
@@ -38,6 +40,8 @@ python runner.py run --plan plans/templates/design_feature.yaml \
     --engine godot4 \
     --input "Add a wall-jump mechanic for the player character"
 ```
+
+See [docs/quick-start.md](docs/quick-start.md) for the full first-run UI flow.
 
 ---
 

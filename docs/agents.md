@@ -1,17 +1,35 @@
 # Agent Authoring Guide
 
-Agents are markdown files with a YAML frontmatter block followed by the system prompt body.
+Agents are markdown files with a YAML frontmatter block followed by the system prompt body. You can create and edit them from the **web UI** or directly on disk.
 
-## File location
+For initial project setup and your first run, start with [Project Quick Start](quick-start.md).
 
-```
+---
+
+## Using the Web UI
+
+Navigate to **Agents** in the sidebar. The page lists all agents grouped by tier.
+
+- **Edit** — click any agent name to open it in the CodeMirror editor. The frontmatter fields (name, tier, reports_to, domain, model_override) are shown as form fields above the prompt body. Changes save immediately via `PUT /edit/agents/{tier}/{filename}`.
+- **Create** — click **New Agent**, fill in the form, and save. The file is created under the correct `agents/tier{N}/` directory automatically.
+- **Delete** — use the delete button on the agent detail page. This removes the markdown file from disk.
+
+> If CodeMirror fails to load (e.g. no internet for the ESM CDN), the editor falls back to a plain textarea.
+
+---
+
+## Editing Files Directly
+
+### File location
+
+```text
 agents/
 ├── tier1/    # creative_director, technical_director, producer
 ├── tier2/    # leads and directors
 └── tier3/    # specialist implementers
 ```
 
-## Format
+### Format
 
 ```markdown
 ---
@@ -31,22 +49,22 @@ Your output format:
 [description]
 ```
 
-## Required frontmatter fields
+### Required frontmatter fields
 
 | Field | Type | Description |
-|---|---|---|
+| ----- | ---- | ----------- |
 | `name` | string | Snake_case agent name, matches the filename (without `.md`) |
 | `tier` | int | 1, 2, or 3 |
 | `reports_to` | string \| null | Parent agent name, or `null` for Tier 1 roots |
 | `domain` | string | One-line description of expertise |
 
-## Optional frontmatter fields
+### Optional frontmatter fields
 
 | Field | Type | Description |
-|---|---|---|
+| ----- | ---- | ----------- |
 | `model_override` | string | litellm model ID — overrides the tier default for this specific agent |
 
-### `model_override` examples
+#### `model_override` examples
 
 Any [litellm-supported model](https://docs.litellm.ai/docs/providers) can be used:
 
@@ -69,14 +87,18 @@ model_override: mistral/mistral-large-latest
 
 Run `python runner.py list-models` to see all pre-configured providers and model IDs.
 
-## System prompt guidelines
+---
+
+## System Prompt Guidelines
 
 - **Be specific about output format.** Agents that produce structured output (JSON, code, design specs) should include the exact format in their system prompt so the orchestrator can validate it.
 - **Include a constraint section.** List the rules the agent must never break (e.g., no hardcoded values, 60-character dialogue limit).
 - **Engine awareness.** The orchestrator injects engine context automatically, but agents can reference engine-specific patterns explicitly.
 - **Tier 1 agents own decisions.** Their prompts should include APPROVED/REJECTED patterns since they are used as gates.
 
-## Referencing a custom agent in a plan
+---
+
+## Referencing a Custom Agent in a Plan
 
 Use the `name` field value exactly as the `agent` field in a plan step:
 
@@ -89,6 +111,4 @@ steps:
     gate: auto
 ```
 
-## Editing agents in the web UI
-
-Navigate to **Edit → Agents** in the sidebar. Each agent file is editable with a CodeMirror 6 editor (falls back to a plain textarea if the ESM import fails). Changes are saved immediately via `PUT /edit/agents/{tier}/{filename}`. The `model_override` field can also be set from the agent editor form.
+> **Tip:** You can also create and wire up agents via the web UI — see [Using the Web UI](#using-the-web-ui) above.

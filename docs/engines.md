@@ -6,17 +6,45 @@ Each engine has a YAML config in `config/engines/` that controls:
 - **Sprite dimensions** — pixel sizes per asset type
 - **Agent context** — a paragraph injected into every agent prompt when that engine is active
 
-## Auto-detection
+For installation and first-time project setup, start with [Project Quick Start](quick-start.md).
 
-Set your game project path in **Setup → Project** tab (`/edit/config`). The server scans the directory against all `detect_files` entries in `config/engines/*.yaml` and shows which engine it matched. Detection also runs at startup if `config/settings.yaml` exists.
+---
 
-You can trigger detection from the CLI too:
+## Using the Web UI
+
+### Setting the project path and auto-detection
+
+Navigate to **Setup** (`/edit/config`) → **Project** tab. Enter the absolute path to your game project root. The server scans the directory against all `detect_files` entries in `config/engines/*.yaml` and shows which engine it matched. The detected engine is injected into every agent prompt for that run.
+
+### Editing engine configs
+
+Navigate to **Engines** in the sidebar. The page lists all engine YAML files from `config/engines/`.
+
+- **Edit** — click any engine name to open it in the CodeMirror YAML editor. You can modify detection patterns, sprite dimensions, and the agent context paragraph. Changes save immediately via `PUT /edit/engines/{filename}`.
+- **Create** — click **New Engine** to add a custom engine config.
+- **Delete** — use the delete button on the engine detail page.
+
+> If CodeMirror fails to load (e.g. no internet for the ESM CDN), the editor falls back to a plain textarea.
+
+---
+
+## Auto-Detection
+
+Detection also runs from the CLI:
 
 ```bash
 python runner.py detect-engine /path/to/project
 ```
 
-## Engine configs
+Or pass `--engine` explicitly to skip detection:
+
+```bash
+python runner.py run --plan plans/templates/design_feature.yaml --engine godot4
+```
+
+---
+
+## Engine Configs
 
 ### Godot 4
 
@@ -25,7 +53,7 @@ python runner.py detect-engine /path/to/project
 **Sprite dimensions:**
 
 | Asset type | Width | Height | Notes |
-|---|---|---|---|
+| ---------- | ----- | ------ | ----- |
 | player | 48 | 64 | Base sprite size |
 | enemy | 32 | 48 | Base enemy size |
 | boss | 64 | 80 | Boss characters |
@@ -34,6 +62,7 @@ python runner.py detect-engine /path/to/project
 | ui | 16 | 16 | Icon assets |
 
 **Key conventions injected into agents:**
+
 - Static typing on all GDScript variables, params, and return types
 - `CharacterBody2D` for all characters; never `RigidBody2D` for player
 - Physics layers: 1=player, 2=enemy, 3=hitbox, 4=world, 5=props
@@ -52,7 +81,7 @@ python runner.py detect-engine /path/to/project
 **Sprite dimensions:**
 
 | Asset type | Width | Height |
-|---|---|---|
+| ---------- | ----- | ------ |
 | player | 64 | 64 |
 | enemy | 48 | 48 |
 | background | 1920 | 1080 |
@@ -60,6 +89,7 @@ python runner.py detect-engine /path/to/project
 | ui | 32 | 32 |
 
 **Key conventions injected into agents:**
+
 - C# with full type annotations
 - `MonoBehaviour` lifecycle (`Awake`, `Start`, `Update`, `FixedUpdate`)
 - `ScriptableObject` for data-driven content
@@ -78,7 +108,7 @@ python runner.py detect-engine /path/to/project
 **Sprite dimensions:**
 
 | Asset type | Width | Height |
-|---|---|---|
+| ---------- | ----- | ------ |
 | player | 256 | 256 |
 | enemy | 128 | 128 |
 | background | 3840 | 2160 |
@@ -86,6 +116,7 @@ python runner.py detect-engine /path/to/project
 | ui | 64 | 64 |
 
 **Key conventions injected into agents:**
+
 - Blueprint-first approach; C++ for performance-critical systems only
 - `PaperZDCharacter` for 2D characters
 - Data-driven content via `DataTable` assets
@@ -95,20 +126,29 @@ python runner.py detect-engine /path/to/project
 
 ---
 
-## Adding a new engine
+## Adding a New Engine
+
+### Via the web UI
+
+1. Navigate to **Engines** in the sidebar
+2. Click **New Engine**
+3. Paste the YAML structure below and customize it
+4. Save — the engine is immediately available
+
+### Via file
 
 1. Create `config/engines/myengine.yaml` with the structure:
 
-```yaml
-name: My Engine
-detection:
-  files: ["marker_file.ext"]
-sprite_dimensions:
-  player: {width: 64, height: 64}
-  background: {width: 1920, height: 1080}
-agent_context: |
-  This project uses My Engine. Follow these conventions: ...
-```
+    ```yaml
+    name: My Engine
+    detection:
+      files: ["marker_file.ext"]
+    sprite_dimensions:
+      player: {width: 64, height: 64}
+      background: {width: 1920, height: 1080}
+    agent_context: |
+      This project uses My Engine. Follow these conventions: ...
+    ```
 
 2. Add a detection case in `src/engines/detect.py` → `detect()` function.
 
