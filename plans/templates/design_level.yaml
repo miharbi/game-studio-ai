@@ -11,7 +11,6 @@ input: >
 steps:
   - id: level_concept
     agent: game_designer
-    tier: 2
     action: >
       Design the level concept: pacing structure, number of waves,
       enemy progression, boss concept, and player emotional arc from
@@ -21,7 +20,6 @@ steps:
 
   - id: level_layout
     agent: level_designer
-    tier: 3
     action: >
       Using the approved concept, produce a complete schema-valid JSON
       world block including all waves, enemy placements, trigger_x values,
@@ -33,7 +31,6 @@ steps:
 
   - id: world_dressing
     agent: world_builder
-    tier: 3
     action: >
       Fill the world with environmental detail: complete all 20
       art_direction keys, place scenario_ads, and enrich the props list
@@ -44,7 +41,6 @@ steps:
 
   - id: technical_review
     agent: technical_director
-    tier: 1
     action: >
       Review the complete world JSON for schema compliance, performance
       concerns (prop count, wave density), and consistency with the

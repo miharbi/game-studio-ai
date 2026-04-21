@@ -11,7 +11,6 @@ input: >
 steps:
   - id: creative_review
     agent: creative_director
-    tier: 1
     action: >
       Review the proposed feature against the game's creative vision.
       Approve or reject the concept and provide refinement notes.
@@ -20,7 +19,6 @@ steps:
 
   - id: game_design_spec
     agent: game_designer
-    tier: 2
     action: >
       Using the creative director's approved concept and refinement notes,
       write a complete game design specification including mechanics,
@@ -30,7 +28,6 @@ steps:
 
   - id: systems_design
     agent: systems_designer
-    tier: 3
     action: >
       Based on the game design spec, design the underlying systems:
       progression hooks, score impact, feedback loops, and balance
@@ -41,7 +38,6 @@ steps:
 
   - id: qa_test_plan
     agent: qa_tester
-    tier: 3
     action: >
       Write a complete test plan for the designed feature: happy path,
       edge cases, regression vectors, and platform-specific checks.

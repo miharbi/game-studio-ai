@@ -4,9 +4,119 @@
 {% block head_extra %}
 {% if local_assets %}
 <script src="/static/vendor/sortable.min.js"></script>
+<link rel="stylesheet" href="/static/vendor/drawflow.min.css">
+<script src="/static/vendor/drawflow.min.js"></script>
 {% else %}
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1/Sortable.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/drawflow/dist/drawflow.min.css">
+<script src="https://cdn.jsdelivr.net/npm/drawflow/dist/drawflow.min.js"></script>
 {% endif %}
+<style>
+/* ── Drawflow canvas overrides ─────────────────────────────────────────────── */
+#drawflow {
+  background-color: oklch(var(--b3));
+  background-image: radial-gradient(circle, oklch(var(--bc)/0.12) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+.drawflow .drawflow-node {
+  background: oklch(var(--b2));
+  border: 1px solid oklch(var(--bc)/0.18);
+  border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.28);
+  padding: 0;
+  min-width: 220px;
+}
+.drawflow .drawflow-node.selected {
+  background: rgba(156,163,175,0.18);
+  box-shadow: 0 2px 10px rgba(0,0,0,0.28);
+}
+.drawflow .drawflow-node .drawflow_content_node { padding: 0; }
+.df-node-inner { padding: 10px 14px; }
+.df-node-id {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: oklch(var(--p));
+  margin-bottom: 3px;
+}
+.df-node-agent {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: oklch(var(--bc));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.df-node-badges { display: flex; gap: 4px; margin-top: 7px; flex-wrap: wrap; }
+.df-badge {
+  font-size: 0.64rem;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+.df-badge-tier  { background: oklch(var(--s)/0.25); color: oklch(var(--bc)); }
+.df-badge-auto  { background: #16a34a; color: #fff; }
+.df-badge-human { background: #ea580c; color: #fff; }
+.df-badge-cond  { background: #ca8a04; color: #fff; }
+.df-badge-val   { background: oklch(var(--a)/0.25); color: oklch(var(--bc)); }
+.df-edit-btn {
+  flex-shrink: 0;
+  background: none;
+  border: 1px solid oklch(var(--bc)/0.2);
+  border-radius: 5px;
+  padding: 3px 5px;
+  cursor: pointer;
+  color: oklch(var(--bc)/0.5);
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  transition: background 0.15s, color 0.15s;
+}
+.df-edit-btn:hover {
+  background: oklch(var(--p)/0.15);
+  color: oklch(var(--p));
+  border-color: oklch(var(--p)/0.4);
+}
+/* Port dots — DaisyUI uses .input as a form-control class (height:3rem, padding:1rem,
+ * flex-shrink:1, border-radius:.5rem …) which collides with Drawflow's .input port div.
+ * Reset every conflicting DaisyUI property explicitly, then apply port styles. */
+.drawflow .drawflow-node .input,
+.drawflow .drawflow-node .output {
+  /* Reset DaisyUI .input form-control styles */
+  appearance: none;
+  padding: 0;
+  flex-shrink: 0;
+  line-height: 1;
+  font-size: inherit;
+  /* Port styles */
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: oklch(var(--p));
+  border: 2px solid oklch(var(--b1));
+  cursor: crosshair;
+  z-index: 3;
+  margin-bottom: 0;
+  top: 0;
+}
+.drawflow .drawflow-node .input {
+  left: -8px;
+}
+.drawflow .drawflow-node .output {
+  right: 8px;
+}
+/* Side panel */
+#node-panel {
+  width: 0;
+  transition: width 0.2s ease;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+#node-panel.open { width: 320px; }
+#node-panel-inner { width: 320px; }
+</style>
 {% endblock %}
 {% block content %}
 <!-- Breadcrumb -->
@@ -16,6 +126,7 @@
     <li>{{ filename | replace('.yaml','') | replace('_',' ') | title }}</li>
   </ul>
 </div>
+
 <!-- Metadata -->
 <div class="card bg-base-200 mb-4">
   <div class="card-body">
@@ -50,83 +161,173 @@
     </div>
   </div>
 </div>
-<!-- Steps builder -->
+
+<!-- Pipeline section -->
 <div class="card bg-base-200 mb-4">
-  <div class="card-body">
-    <div class="flex justify-between items-center mb-4">
-      <h2 class="card-title text-sm uppercase tracking-wider opacity-60">Pipeline Steps</h2>
-      <p class="text-xs opacity-50">Each step assigns an agent + action. Steps run in order unless Depends On creates parallel branches. Drag to reorder.</p>
-      <button class="btn btn-sm btn-primary" onclick="addStep()">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-        Add Step
-      </button>
+  <div class="card-body p-4">
+
+    <!-- Header + view toggle -->
+    <div class="flex flex-wrap items-center gap-3 mb-4">
+      <h2 class="card-title text-sm uppercase tracking-wider opacity-60 flex-1">Pipeline Steps</h2>
+      <div class="join">
+        <button id="toggle-list" class="btn btn-sm join-item" onclick="switchView('list')">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
+          List
+        </button>
+        <button id="toggle-flow" class="btn btn-sm join-item btn-active" onclick="switchView('flow')">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+          Flow
+        </button>
+      </div>
     </div>
-    <div id="steps-container">
-      {% for step in plan.steps %}
-      <div class="step-card card bg-base-300 mb-3 shadow-sm">
-        <div class="card-body p-4">
-          <div class="flex items-center gap-2 mb-3">
-            <span class="drag-handle cursor-grab text-base-content/40 hover:text-base-content"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg></span>
-            <span class="badge badge-primary step-badge">Step {{ loop.index }}</span>
-            <div class="flex-1"></div>
-            <button class="btn btn-ghost btn-xs text-error" onclick="removeStep(this)"><svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+
+    <!-- ══ LIST VIEW ════════════════════════════════════════════════════════ -->
+    <div id="list-view" style="display:none">
+      <div class="flex justify-between items-center mb-3">
+        <p class="text-xs opacity-50">Each step assigns an agent + action. Steps run in order unless Depends On creates parallel branches. Drag to reorder.</p>
+        <button class="btn btn-sm btn-primary" onclick="addStep()">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+          Add Step
+        </button>
+      </div>
+      <div id="steps-container">
+        {% for step in plan.steps %}
+        <div class="step-card card bg-base-300 mb-3 shadow-sm">
+          <div class="card-body p-4">
+            <div class="flex items-center gap-2 mb-3">
+              <span class="drag-handle cursor-grab text-base-content/40 hover:text-base-content"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg></span>
+              <span class="badge badge-primary step-badge">Step {{ loop.index }}</span>
+              <div class="flex-1"></div>
+              <button class="btn btn-ghost btn-xs text-error" onclick="removeStep(this)"><svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div class="form-control">
+                <label class="label py-0"><span class="label-text text-xs">ID</span></label>
+                <input type="text" class="input input-bordered input-sm step-id" value="{{ step.id }}">
+              </div>
+              <div class="form-control md:col-span-2">
+                <label class="label py-0"><span class="label-text text-xs">Agent</span></label>
+                <select class="select select-bordered select-sm step-agent">
+                  {% for a in agents_list %}
+                  <option value="{{ a.file | replace('.md','') }}"
+                    {% if step.agent == a.file | replace('.md','') %}selected{% endif %}>
+                    {{ a.file | replace('.md','') | replace('_',' ') | title }}
+                  </option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="form-control md:col-span-2">
+                <label class="label py-0"><span class="label-text text-xs">Action</span></label>
+                <textarea class="textarea textarea-bordered textarea-sm step-action" rows="3">{{ step.action }}</textarea>
+              </div>
+              <div class="form-control">
+                <label class="label py-0"><span class="label-text text-xs">Gate</span></label>
+                <select class="select select-bordered select-sm step-gate" title="auto = continue, human = pause for approval">
+                  {% for g in gate_options %}
+                  <option value="{{ g }}" {% if step.gate == g %}selected{% endif %}>{{ g }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="form-control">
+                <label class="label py-0"><span class="label-text text-xs">Depends On</span></label>
+                <input type="text" class="input input-bordered input-sm step-depends"
+                  value="{{ step.depends_on | join(', ') if step.depends_on else '' }}"
+                  placeholder="step_id1, step_id2"
+                  title="Comma-separated step IDs that must complete before this step runs">
+              </div>
+              <div class="form-control">
+                <label class="label py-0"><span class="label-text text-xs">Validate As</span></label>
+                <select class="select select-bordered select-sm step-validate" title="Schema to validate the agent's output against (optional)">
+                  <option value="">— None —</option>
+                  {% for s in schema_types %}
+                  <option value="{{ s }}" {% if step.validate_as == s %}selected{% endif %}>{{ s }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
           </div>
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div class="form-control">
-              <label class="label py-0"><span class="label-text text-xs">ID</span></label>
-              <input type="text" class="input input-bordered input-sm step-id" value="{{ step.id }}">
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- ══ FLOW VIEW ════════════════════════════════════════════════════════ -->
+    <div id="flow-view">
+      <!-- Toolbar -->
+      <div class="flex items-center gap-3 mb-2 flex-wrap">
+        <button class="btn btn-sm btn-primary" onclick="addFlowStep()">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+          Add Node
+        </button>
+        <div class="flex items-center gap-3 text-xs opacity-60">
+          <span class="inline-flex items-center gap-1.5"><span style="width:9px;height:9px;border-radius:50%;background:#16a34a;display:inline-block"></span>auto</span>
+          <span class="inline-flex items-center gap-1.5"><span style="width:9px;height:9px;border-radius:50%;background:#ca8a04;display:inline-block"></span>conditional</span>
+          <span class="inline-flex items-center gap-1.5"><span style="width:9px;height:9px;border-radius:50%;background:#ea580c;display:inline-block"></span>human_review</span>
+        </div>
+        <div class="flex-1"></div>
+        <span class="text-xs opacity-40">Click node to edit · Drag ports to connect · Del removes selected</span>
+      </div>
+      <!-- Canvas + side panel -->
+      <div style="position:relative; display:flex; height:calc(100vh - 400px); min-height:440px; border:1px solid oklch(var(--b3)); border-radius:8px; overflow:hidden">
+        <div id="drawflow" style="flex:1; height:100%; min-width:0"></div>
+        <!-- Slide-in panel -->
+        <div id="node-panel" style="height:100%; background:oklch(var(--b2)); border-left:1px solid oklch(var(--bc)/0.12); z-index:10">
+          <div id="node-panel-inner" style="width:320px; padding:16px; height:100%; overflow-y:auto; box-sizing:border-box">
+            <div class="flex items-center justify-between mb-4">
+              <span class="text-sm font-semibold uppercase tracking-wider opacity-60">Edit Node</span>
+              <button class="btn btn-ghost btn-xs" onclick="closeNodePanel()">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+              </button>
             </div>
-            <div class="form-control">
-              <label class="label py-0"><span class="label-text text-xs">Agent</span></label>
-              <select class="select select-bordered select-sm step-agent" onchange="autoFillTier(this)" title="Which agent handles this step — tier auto-fills from agent definition">
-                {% for a in agents_list %}
-                <option value="{{ a.file | replace('.md','') }}"
-                  data-tier="{{ a.tier | replace('tier','') }}"
-                  {% if step.agent == a.file | replace('.md','') %}selected{% endif %}>
-                  {{ a.file | replace('.md','') | replace('_',' ') | title }}
-                </option>
-                {% endfor %}
-              </select>
-            </div>
-            <div class="form-control">
-              <label class="label py-0"><span class="label-text text-xs">Tier</span></label>
-              <input type="number" class="input input-bordered input-sm step-tier" value="{{ step.tier }}" min="1" max="3">
-            </div>
-            <div class="form-control md:col-span-3">
-              <label class="label py-0"><span class="label-text text-xs">Action</span></label>
-              <textarea class="textarea textarea-bordered textarea-sm step-action" rows="3">{{ step.action }}</textarea>
-            </div>
-            <div class="form-control">
-              <label class="label py-0"><span class="label-text text-xs">Gate</span></label>
-              <select class="select select-bordered select-sm step-gate" title="auto = continue, human = pause for approval, review = needs explicit accept/reject">
-                {% for g in gate_options %}
-                <option value="{{ g }}" {% if step.gate == g %}selected{% endif %}>{{ g }}</option>
-                {% endfor %}
-              </select>
-            </div>
-            <div class="form-control">
-              <label class="label py-0"><span class="label-text text-xs">Depends On</span></label>
-              <input type="text" class="input input-bordered input-sm step-depends"
-                value="{{ step.depends_on | join(', ') if step.depends_on else '' }}"
-                placeholder="step_id1, step_id2"
-                title="Comma-separated step IDs that must complete before this step runs">
-            </div>
-            <div class="form-control">
-              <label class="label py-0"><span class="label-text text-xs">Validate As</span></label>
-              <select class="select select-bordered select-sm step-validate" title="Schema to validate the agent's output against (optional)">
-                <option value="">— None —</option>
-                {% for s in schema_types %}
-                <option value="{{ s }}" {% if step.validate_as == s %}selected{% endif %}>{{ s }}</option>
-                {% endfor %}
-              </select>
+            <div class="flex flex-col gap-3">
+              <div class="form-control">
+                <label class="label py-0"><span class="label-text text-xs">ID</span></label>
+                <input type="text" id="panel-id" class="input input-bordered input-sm">
+                <label class="label py-0"><span class="label-text-alt text-xs opacity-40">Changing ID updates the node label</span></label>
+              </div>
+              <div class="form-control">
+                <label class="label py-0"><span class="label-text text-xs">Agent</span></label>
+                <select id="panel-agent" class="select select-bordered select-sm">
+                  {% for a in agents_list %}
+                  <option value="{{ a.file | replace('.md','') }}">
+                    {{ a.file | replace('.md','') | replace('_',' ') | title }}
+                  </option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="form-control">
+                <label class="label py-0"><span class="label-text text-xs">Action</span></label>
+                <textarea id="panel-action" class="textarea textarea-bordered textarea-sm" rows="5"></textarea>
+              </div>
+              <div class="form-control">
+                <label class="label py-0"><span class="label-text text-xs">Gate</span></label>
+                <select id="panel-gate" class="select select-bordered select-sm">
+                  {% for g in gate_options %}
+                  <option value="{{ g }}">{{ g }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="form-control">
+                <label class="label py-0"><span class="label-text text-xs">Validate As</span></label>
+                <select id="panel-validate" class="select select-bordered select-sm">
+                  <option value="">— None —</option>
+                  {% for s in schema_types %}
+                  <option value="{{ s }}">{{ s }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <p class="text-xs opacity-40 mt-1">Connect <em>depends_on</em> by dragging edges between nodes on the canvas.</p>
+              <button class="btn btn-sm btn-primary mt-2" onclick="applyNodePanel()">Apply</button>
+              <button class="btn btn-sm btn-error btn-outline" onclick="deleteSelectedNode()">Delete Node</button>
             </div>
           </div>
         </div>
       </div>
-      {% endfor %}
     </div>
+
   </div>
 </div>
+
 <!-- Action bar -->
 <div class="flex justify-between items-center sticky bottom-0 bg-base-100 py-3 border-t border-base-300 -mx-6 px-6">
   <a href="/edit/plans" class="btn btn-ghost">
@@ -146,21 +347,107 @@
   </div>
 </div>
 {% endblock %}
+
 {% block scripts %}
 <script>
-// SortableJS drag-and-drop
+// ── Server-injected data ──────────────────────────────────────────────────────
+var AGENTS_LIST  = {{ agents_list | tojson }};
+var GATE_OPTIONS = {{ gate_options | tojson }};
+var SCHEMA_TYPES = {{ schema_types | tojson }};
+
+// ── View state ────────────────────────────────────────────────────────────────
+var currentView    = 'flow';
+var editor         = null;
+var selectedNodeId = null;
+var stepIdToNodeId = {};
+var nodeIdToStepId = {};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SHARED HELPERS
+// ═══════════════════════════════════════════════════════════════════════════════
+function esc(str) {
+  return String(str == null ? '' : str)
+    .replace(/&/g,'&amp;').replace(/"/g,'&quot;')
+    .replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function getAgentOptions(selected) {
+  return AGENTS_LIST.map(function(a) {
+    var name = a.file.replace('.md','');
+    var sel  = name === selected ? ' selected' : '';
+    return '<option value="' + esc(name) + '"' + sel + '>'
+         + esc(name.replace(/_/g,' ')) + '</option>';
+  }).join('');
+}
+function getGateOptions(selected) {
+  return GATE_OPTIONS.map(function(g) {
+    return '<option value="' + esc(g) + '"' + (g === selected ? ' selected' : '') + '>' + esc(g) + '</option>';
+  }).join('');
+}
+function getSchemaOptions(selected) {
+  return '<option value="">— None —</option>'
+    + SCHEMA_TYPES.map(function(s) {
+        return '<option value="' + esc(s) + '"' + (s === selected ? ' selected' : '') + '>' + esc(s) + '</option>';
+      }).join('');
+}
+
+// Kahn topological sort — returns steps ordered by dependency depth
+function topoSortSteps(steps) {
+  var map = {}, inDegree = {}, children = {};
+  steps.forEach(function(s) { map[s.id] = s; inDegree[s.id] = 0; children[s.id] = []; });
+  steps.forEach(function(s) {
+    (s.depends_on || []).forEach(function(dep) {
+      if (map[dep]) { children[dep].push(s.id); inDegree[s.id]++; }
+    });
+  });
+  var queue  = steps.filter(function(s) { return inDegree[s.id] === 0; }).map(function(s) { return s.id; });
+  var result = [];
+  while (queue.length) {
+    var cur = queue.shift();
+    result.push(map[cur]);
+    (children[cur] || []).forEach(function(child) {
+      if (--inDegree[child] === 0) queue.push(child);
+    });
+  }
+  // Append any remaining steps in case of cycles
+  steps.forEach(function(s) { if (result.indexOf(s) === -1) result.push(s); });
+  return result;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// VIEW TOGGLE
+// ═══════════════════════════════════════════════════════════════════════════════
+function switchView(mode) {
+  if (mode === currentView) return;
+  if (mode === 'flow') {
+    var steps = collectSteps();
+    document.getElementById('list-view').style.display = 'none';
+    document.getElementById('flow-view').style.display = 'block';
+    document.getElementById('toggle-list').classList.remove('btn-active');
+    document.getElementById('toggle-flow').classList.add('btn-active');
+    rebuildFlowFromSteps(steps);
+  } else {
+    var steps = collectFlowSteps();
+    renderListFromSteps(steps);
+    document.getElementById('flow-view').style.display = 'none';
+    document.getElementById('list-view').style.display = 'block';
+    document.getElementById('toggle-flow').classList.remove('btn-active');
+    document.getElementById('toggle-list').classList.add('btn-active');
+  }
+  currentView = mode;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// LIST VIEW
+// ═══════════════════════════════════════════════════════════════════════════════
 new Sortable(document.getElementById('steps-container'), {
-  handle: '.drag-handle',
-  animation: 150,
-  ghostClass: 'opacity-30',
-  onEnd: renumberSteps,
+  handle: '.drag-handle', animation: 150, ghostClass: 'opacity-30', onEnd: renumberSteps,
 });
 
-function autoFillTier(select) {
-  var opt = select.selectedOptions[0];
-  var tier = opt ? opt.dataset.tier : null;
-  if (tier) select.closest('.step-card').querySelector('.step-tier').value = tier;
-}
+// Init flow view on load (it is the default)
+document.addEventListener('DOMContentLoaded', function() {
+  rebuildFlowFromSteps(collectSteps());
+});
 
 function renumberSteps() {
   document.querySelectorAll('.step-card').forEach(function(card, i) {
@@ -168,34 +455,36 @@ function renumberSteps() {
   });
 }
 
+function buildStepCardHTML(step, index) {
+  var dragHandle = '<span class="drag-handle cursor-grab text-base-content/40 hover:text-base-content"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg></span>';
+  var removeBtn  = '<button class="btn btn-ghost btn-xs text-error" onclick="removeStep(this)"><svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>';
+  return '<div class="card-body p-4">'
+    + '<div class="flex items-center gap-2 mb-3">' + dragHandle
+    + '<span class="badge badge-primary step-badge">Step ' + (index + 1) + '</span>'
+    + '<div class="flex-1"></div>' + removeBtn + '</div>'
+    + '<div class="grid grid-cols-1 md:grid-cols-2 gap-3">'
+    + '<div class="form-control"><label class="label py-0"><span class="label-text text-xs">ID</span></label>'
+    + '<input type="text" class="input input-bordered input-sm step-id" value="' + esc(step.id) + '"></div>'
+    + '<div class="form-control"><label class="label py-0"><span class="label-text text-xs">Agent</span></label>'
+    + '<select class="select select-bordered select-sm step-agent">' + getAgentOptions(step.agent) + '</select></div>'
+    + '<div class="form-control md:col-span-2"><label class="label py-0"><span class="label-text text-xs">Action</span></label>'
+    + '<textarea class="textarea textarea-bordered textarea-sm step-action" rows="3">' + esc(step.action || '') + '</textarea></div>'
+    + '<div class="form-control"><label class="label py-0"><span class="label-text text-xs">Gate</span></label>'
+    + '<select class="select select-bordered select-sm step-gate">' + getGateOptions(step.gate || 'auto') + '</select></div>'
+    + '<div class="form-control"><label class="label py-0"><span class="label-text text-xs">Depends On</span></label>'
+    + '<input type="text" class="input input-bordered input-sm step-depends" value="' + esc((step.depends_on || []).join(', ')) + '" placeholder="step_id1, step_id2"></div>'
+    + '<div class="form-control"><label class="label py-0"><span class="label-text text-xs">Validate As</span></label>'
+    + '<select class="select select-bordered select-sm step-validate">' + getSchemaOptions(step.validate_as || '') + '</select></div>'
+    + '</div></div>';
+}
+
 function addStep() {
   var container = document.getElementById('steps-container');
-  var index = container.children.length;
+  var index     = container.children.length;
+  var step = { id: 'step_' + (index + 1), agent: AGENTS_LIST[0] ? AGENTS_LIST[0].file.replace('.md','') : '', action: '', gate: 'auto', depends_on: [], validate_as: null };
   var card = document.createElement('div');
   card.className = 'step-card card bg-base-300 mb-3 shadow-sm';
-  card.innerHTML = '<div class="card-body p-4">'
-    + '<div class="flex items-center gap-2 mb-3">'
-    + '<span class="drag-handle cursor-grab text-base-content/40 hover:text-base-content"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg></span>'
-    + '<span class="badge badge-primary step-badge">Step ' + (index + 1) + '</span>'
-    + '<div class="flex-1"></div>'
-    + '<button class="btn btn-ghost btn-xs text-error" onclick="removeStep(this)"><svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>'
-    + '</div>'
-    + '<div class="grid grid-cols-1 md:grid-cols-3 gap-3">'
-    + '<div class="form-control"><label class="label py-0"><span class="label-text text-xs">ID</span></label>'
-    + '<input type="text" class="input input-bordered input-sm step-id" value="step_' + (index + 1) + '"></div>'
-    + '<div class="form-control"><label class="label py-0"><span class="label-text text-xs">Agent</span></label>'
-    + '<select class="select select-bordered select-sm step-agent" onchange="autoFillTier(this)">' + getAgentOptions() + '</select></div>'
-    + '<div class="form-control"><label class="label py-0"><span class="label-text text-xs">Tier</span></label>'
-    + '<input type="number" class="input input-bordered input-sm step-tier" value="3" min="1" max="3"></div>'
-    + '<div class="form-control md:col-span-3"><label class="label py-0"><span class="label-text text-xs">Action</span></label>'
-    + '<textarea class="textarea textarea-bordered textarea-sm step-action" rows="3"></textarea></div>'
-    + '<div class="form-control"><label class="label py-0"><span class="label-text text-xs">Gate</span></label>'
-    + '<select class="select select-bordered select-sm step-gate">' + getGateOptions() + '</select></div>'
-    + '<div class="form-control"><label class="label py-0"><span class="label-text text-xs">Depends On</span></label>'
-    + '<input type="text" class="input input-bordered input-sm step-depends" placeholder="step_id1, step_id2"></div>'
-    + '<div class="form-control"><label class="label py-0"><span class="label-text text-xs">Validate As</span></label>'
-    + '<select class="select select-bordered select-sm step-validate"><option value="">— None —</option>' + getSchemaOptions() + '</select></div>'
-    + '</div></div>';
+  card.innerHTML = buildStepCardHTML(step, index);
   container.appendChild(card);
 }
 
@@ -204,42 +493,247 @@ function removeStep(btn) {
   renumberSteps();
 }
 
-function getAgentOptions() {
-  var agents = {{ agents_list | tojson }};
-  return agents.map(function(a) {
-    var name = a.file.replace('.md','');
-    return '<option value="' + name + '" data-tier="' + a.tier.replace('tier','') + '">'
-      + name.replace(/_/g,' ') + '</option>';
-  }).join('');
-}
-
-function getGateOptions() {
-  var gates = {{ gate_options | tojson }};
-  return gates.map(function(g) { return '<option value="' + g + '">' + g + '</option>'; }).join('');
-}
-
-function getSchemaOptions() {
-  var schemas = {{ schema_types | tojson }};
-  return schemas.map(function(s) { return '<option value="' + s + '">' + s + '</option>'; }).join('');
-}
-
 function collectSteps() {
   var steps = [];
   document.querySelectorAll('.step-card').forEach(function(card) {
-    var depends = card.querySelector('.step-depends').value.trim();
+    var dep = card.querySelector('.step-depends').value.trim();
     steps.push({
-      id: card.querySelector('.step-id').value.trim(),
-      agent: card.querySelector('.step-agent').value,
-      tier: parseInt(card.querySelector('.step-tier').value),
-      action: card.querySelector('.step-action').value.trim(),
-      gate: card.querySelector('.step-gate').value,
-      depends_on: depends ? depends.split(',').map(function(s){return s.trim();}).filter(Boolean) : [],
+      id:          card.querySelector('.step-id').value.trim(),
+      agent:       card.querySelector('.step-agent').value,
+      action:      card.querySelector('.step-action').value.trim(),
+      gate:        card.querySelector('.step-gate').value,
+      depends_on:  dep ? dep.split(',').map(function(s){ return s.trim(); }).filter(Boolean) : [],
       validate_as: card.querySelector('.step-validate').value || null,
     });
   });
   return steps;
 }
 
+function renderListFromSteps(steps) {
+  var container = document.getElementById('steps-container');
+  container.innerHTML = '';
+  steps.forEach(function(step, i) {
+    var card = document.createElement('div');
+    card.className = 'step-card card bg-base-300 mb-3 shadow-sm';
+    card.innerHTML = buildStepCardHTML(step, i);
+    container.appendChild(card);
+  });
+  new Sortable(container, { handle: '.drag-handle', animation: 150, ghostClass: 'opacity-30', onEnd: renumberSteps });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// FLOW VIEW — layout
+// ═══════════════════════════════════════════════════════════════════════════════
+function computeLayout(steps) {
+  var depths   = {};
+  var children = {};
+  var inDeg    = {};
+  steps.forEach(function(s) { depths[s.id] = 0; children[s.id] = []; inDeg[s.id] = 0; });
+  steps.forEach(function(s) {
+    (s.depends_on || []).forEach(function(dep) {
+      if (children[dep]) { children[dep].push(s.id); inDeg[s.id]++; }
+    });
+  });
+  var queue = steps.filter(function(s) { return inDeg[s.id] === 0; }).map(function(s) { return s.id; });
+  var visited = {};
+  var work = queue.slice();
+  while (work.length) {
+    var cur = work.shift();
+    if (visited[cur]) continue;
+    visited[cur] = true;
+    (children[cur] || []).forEach(function(child) {
+      depths[child] = Math.max(depths[child] || 0, (depths[cur] || 0) + 1);
+      if (--inDeg[child] === 0) work.push(child);
+    });
+  }
+  var columns = {};
+  steps.forEach(function(s) {
+    var col = depths[s.id] || 0;
+    if (!columns[col]) columns[col] = [];
+    columns[col].push(s.id);
+  });
+  var positions = {};
+  var NODE_W = 240, NODE_H = 110, GAP_X = 80, GAP_Y = 30, OX = 60, OY = 60;
+  Object.keys(columns).sort(function(a,b){ return a - b; }).forEach(function(col) {
+    columns[col].sort().forEach(function(id, row) {
+      positions[id] = { x: OX + col * (NODE_W + GAP_X), y: OY + row * (NODE_H + GAP_Y) };
+    });
+  });
+  return positions;
+}
+
+// ── Node HTML ─────────────────────────────────────────────────────────────────
+function gateBadgeClass(gate) {
+  if (gate === 'human_review') return 'df-badge-human';
+  if (gate === 'conditional')  return 'df-badge-cond';
+  return 'df-badge-auto';
+}
+
+function nodeHTML(step) {
+  var label = (step.agent || '').replace(/_/g,' ').replace(/\b\w/g, function(c){ return c.toUpperCase(); });
+  return '<div class="df-node-inner">'
+    + '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:4px">'
+    + '<div>'
+    + '<div class="df-node-id">' + esc(step.id) + '</div>'
+    + '<div class="df-node-agent">' + esc(label) + '</div>'
+    + '</div>'
+    + '<button class="df-edit-btn" title="Edit node" onclick="editNodeBtn(event,this)">'
+    + '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536M9 13l-4 1 1-4L16.768 3.768a2 2 0 012.828 2.828L9 13z"/></svg>'
+    + '</button>'
+    + '</div>'
+    + '<div class="df-node-badges">'
+    + '<span class="df-badge ' + gateBadgeClass(step.gate) + '">' + esc(step.gate || 'auto') + '</span>'
+    + (step.validate_as ? '<span class="df-badge df-badge-val">' + esc(step.validate_as) + '</span>' : '')
+    + '</div></div>';
+}
+
+// ── Build / rebuild editor ────────────────────────────────────────────────────
+function rebuildFlowFromSteps(steps) {
+  var container = document.getElementById('drawflow');
+  container.innerHTML = '';
+  editor = new Drawflow(container);
+  editor.reroute = true;
+  editor.start();
+  setupEditorEvents();
+  stepIdToNodeId = {};
+  nodeIdToStepId = {};
+
+  var positions = computeLayout(steps);
+  steps.forEach(function(step) {
+    var pos = positions[step.id] || { x: 60, y: 60 };
+    var nid = editor.addNode(
+      step.id, 1, 1, pos.x, pos.y, 'df-step',
+      { id: step.id, agent: step.agent, action: step.action || '', gate: step.gate || 'auto', validate_as: step.validate_as || null },
+      nodeHTML(step)
+    );
+    stepIdToNodeId[step.id] = nid;
+    nodeIdToStepId[nid]     = step.id;
+  });
+
+  steps.forEach(function(step) {
+    (step.depends_on || []).forEach(function(dep) {
+      var from = stepIdToNodeId[dep];
+      var to   = stepIdToNodeId[step.id];
+      if (from != null && to != null) {
+        try { editor.addConnection(from, to, 'output_1', 'input_1'); } catch(e) {}
+      }
+    });
+  });
+}
+
+function setupEditorEvents() {
+  // Track which node is selected (for delete / apply)
+  editor.on('nodeSelected', function(id) {
+    selectedNodeId = parseInt(id);
+  });
+  editor.on('nodeUnselected', function() {
+    // don't close panel here — user may still be editing
+  });
+}
+
+// Called by the pencil button inside a node
+function editNodeBtn(event, btn) {
+  event.stopPropagation();
+  var nodeEl = btn.closest('.drawflow-node');
+  if (!nodeEl) return;
+  var nid = parseInt(nodeEl.id.replace('node-', ''));
+  if (isNaN(nid)) return;
+  selectedNodeId = nid;
+  var node = editor.getNodeFromId(nid);
+  if (node) openNodePanel(node.data);
+}
+
+// ── Add new node ──────────────────────────────────────────────────────────────
+function addFlowStep() {
+  var count = Object.keys(stepIdToNodeId).length;
+  var newId = 'step_' + (count + 1);
+  while (stepIdToNodeId[newId] != null) { count++; newId = 'step_' + (count + 1); }
+  var defAgent = AGENTS_LIST[0] ? AGENTS_LIST[0].file.replace('.md','') : '';
+  var step = { id: newId, agent: defAgent, action: '', gate: 'auto', validate_as: null };
+  var col  = Math.floor(count / 4);
+  var row  = count % 4;
+  var pos  = { x: 60 + col * 320, y: 60 + row * 140 };
+  var nid  = editor.addNode(newId, 1, 1, pos.x, pos.y, 'df-step',
+    { id: step.id, agent: step.agent, action: step.action, gate: step.gate, validate_as: null },
+    nodeHTML(step));
+  stepIdToNodeId[step.id] = nid;
+  nodeIdToStepId[nid]     = step.id;
+  selectedNodeId = nid;
+  openNodePanel(step);
+}
+
+// ── Side panel ────────────────────────────────────────────────────────────────
+function openNodePanel(data) {
+  document.getElementById('panel-id').value       = data.id       || '';
+  document.getElementById('panel-agent').value    = data.agent    || '';
+  document.getElementById('panel-action').value   = data.action   || '';
+  document.getElementById('panel-gate').value     = data.gate     || 'auto';
+  document.getElementById('panel-validate').value = data.validate_as || '';
+  document.getElementById('node-panel').classList.add('open');
+}
+
+function closeNodePanel() {
+  document.getElementById('node-panel').classList.remove('open');
+  selectedNodeId = null;
+}
+
+function applyNodePanel() {
+  if (selectedNodeId == null) return;
+  var newId  = document.getElementById('panel-id').value.trim();
+  var agent  = document.getElementById('panel-agent').value;
+  var action = document.getElementById('panel-action').value.trim();
+  var gate   = document.getElementById('panel-gate').value;
+  var val    = document.getElementById('panel-validate').value || null;
+  var oldId  = nodeIdToStepId[selectedNodeId];
+
+  if (newId && newId !== oldId) {
+    delete stepIdToNodeId[oldId];
+    stepIdToNodeId[newId]       = selectedNodeId;
+    nodeIdToStepId[selectedNodeId] = newId;
+  }
+
+  var data = { id: newId || oldId, agent: agent, action: action, gate: gate, validate_as: val };
+  editor.updateNodeDataFromId(selectedNodeId, data);
+  var el = document.querySelector('#node-' + selectedNodeId + ' .drawflow_content_node');
+  if (el) el.innerHTML = nodeHTML(data);
+}
+
+function deleteSelectedNode() {
+  if (selectedNodeId == null) return;
+  var stepId = nodeIdToStepId[selectedNodeId];
+  editor.removeNodeId('node-' + selectedNodeId);
+  if (stepId) delete stepIdToNodeId[stepId];
+  delete nodeIdToStepId[selectedNodeId];
+  closeNodePanel();
+}
+
+// ── Collect steps from flow canvas ───────────────────────────────────────────
+function collectFlowSteps() {
+  if (!editor) return [];
+  var exported = editor.export();
+  var nodes    = exported.drawflow.Home.data;
+  var raw = [];
+  Object.keys(nodes).forEach(function(key) {
+    var nodeId = parseInt(key);
+    var node   = nodes[key];
+    var data   = node.data;
+    var conns  = (node.inputs && node.inputs.input_1) ? node.inputs.input_1.connections : [];
+    var deps   = conns.map(function(c) { return nodeIdToStepId[parseInt(c.node)]; }).filter(Boolean);
+    raw.push({
+      id:          data.id || nodeIdToStepId[nodeId] || ('step_' + nodeId),
+      agent:       data.agent  || '',
+      action:      data.action || '',
+      gate:        data.gate   || 'auto',
+      depends_on:  deps,
+      validate_as: data.validate_as || null,
+    });
+  });
+  return topoSortSteps(raw);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SAVE / DELETE
+// ═══════════════════════════════════════════════════════════════════════════════
 document.addEventListener('keydown', function(e) {
   if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); savePlan(); }
 });
@@ -248,17 +742,16 @@ async function savePlan() {
   var btn = document.getElementById('save-btn');
   btn.disabled = true;
   btn.innerHTML = 'Saving…';
+  var steps = currentView === 'flow' ? collectFlowSteps() : collectSteps();
   var body = {
-    task: document.getElementById('plan-task').value.trim(),
+    task:        document.getElementById('plan-task').value.trim(),
     description: document.getElementById('plan-description').value.trim(),
-    engine: document.getElementById('plan-engine').value || null,
-    input_text: document.getElementById('plan-input').value.trim(),
-    steps: collectSteps(),
+    engine:      document.getElementById('plan-engine').value || null,
+    input_text:  document.getElementById('plan-input').value.trim(),
+    steps:       steps,
   };
   var res = await fetch('/edit/plans/{{ filename }}', {
-    method: 'PUT',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify(body),
+    method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body),
   });
   if (res.ok) {
     showToast('Plan saved', 'success');

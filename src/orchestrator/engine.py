@@ -27,7 +27,6 @@ class PlanStep:
     def __init__(self, raw: dict[str, Any]) -> None:
         self.id: str = raw.get("id", raw["agent"])
         self.agent: str = raw["agent"]
-        self.tier: int = int(raw.get("tier", 3))
         self.action: str = raw["action"]
         self.depends_on: str | None = raw.get("depends_on")
         self.gate: GateType = GateType(raw.get("gate", "auto"))
@@ -108,16 +107,15 @@ class PlanExecutor:
                 self._emit(f"  ↩  Skipping (already completed): {step.id}")
                 continue
 
+            agent_def = self.loader.load(step.agent)
             self._emit(
-                f"\n▶  Step: {step.id}  agent={step.agent}  tier={step.tier}"
+                f"\n▶  Step: {step.id}  agent={step.agent}  tier={agent_def.tier}"
             )
 
             if self.dry_run:
-                agent_def = self.loader.load(step.agent)
-                self._emit(f"  [dry-run] Would call: {agent_def.name} via {get_model(step.tier, self.engine)}")
+                self._emit(f"  [dry-run] Would call: {agent_def.name} via {get_model(agent_def.tier, self.engine)}")
                 continue
 
-            agent_def = self.loader.load(step.agent)
             output = self._run_step(step, agent_def)
 
             if step.validate_as:
@@ -164,7 +162,7 @@ class PlanExecutor:
 
     def _run_step(self, step: PlanStep, agent: AgentDefinition) -> str:
         """Call the LLM for a single step and return the full output."""
-        model = agent.model_override or get_model(step.tier, self.engine)
+        model = agent.model_override or get_model(agent.tier, self.engine)
         client = LLMClient(model)
 
         context_block = self.context.build_context(self._engine_context, model=model)

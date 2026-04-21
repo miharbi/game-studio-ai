@@ -186,7 +186,6 @@ def _build_plan_yaml(body: "PlanBody") -> str:
         step: dict[str, Any] = {
             "id": s.id,
             "agent": s.agent,
-            "tier": s.tier,
             "action": s.action,
         }
         if s.gate:
@@ -238,7 +237,6 @@ class AgentBody(BaseModel):
 class StepBody(BaseModel):
     id: str
     agent: str
-    tier: int = 3
     action: str = ""
     gate: str = "auto"
     depends_on: list[str] = []

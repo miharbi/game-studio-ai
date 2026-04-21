@@ -11,7 +11,6 @@ input: >
 steps:
   - id: art_direction
     agent: art_director
-    tier: 2
     action: >
       Write detailed asset specifications for each requested sprite:
       pixel dimensions, animation frame counts, palette constraints,
@@ -22,7 +21,6 @@ steps:
 
   - id: sprite_generation
     agent: technical_artist
-    tier: 3
     action: >
       Based on the art direction specs, produce the final sprite
       generation configuration: atlas layout, import settings for
@@ -36,7 +34,6 @@ steps:
 
   - id: sprite_qa
     agent: qa_tester
-    tier: 3
     action: >
       Write a visual QA checklist for the generated sprites: pixel
       consistency, transparent background, correct dimensions, animation

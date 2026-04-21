@@ -12,7 +12,6 @@ input: >
 steps:
   - id: standards_review
     agent: lead_programmer
-    tier: 2
     action: >
       Review the submitted code against project coding standards:
       static typing, naming conventions, no hardcoded values, no
@@ -24,7 +23,6 @@ steps:
 
   - id: engine_integration_review
     agent: engine_programmer
-    tier: 3
     action: >
       Review engine-specific integration concerns: autoload usage,
       physics layer correctness, Resource loading patterns, scene
@@ -35,7 +33,6 @@ steps:
 
   - id: security_review
     agent: security_engineer
-    tier: 3
     action: >
       Audit the code for security vulnerabilities using the OWASP Top 10
       as a baseline plus game-specific threats (score manipulation,
@@ -46,7 +43,6 @@ steps:
 
   - id: regression_test_plan
     agent: qa_tester
-    tier: 3
     action: >
       Write regression test cases that verify the reviewed code works
       correctly and doesn't break adjacent systems. Include at least
