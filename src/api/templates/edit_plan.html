@@ -265,7 +265,7 @@
           <span class="inline-flex items-center gap-1.5"><span style="width:9px;height:9px;border-radius:50%;background:#ea580c;display:inline-block"></span>human_review</span>
         </div>
         <div class="flex-1"></div>
-        <span class="text-xs opacity-40">Click node to edit · Drag ports to connect · Del removes selected</span>
+        <span class="text-xs opacity-40">Click ✏ to edit · Drag ports to connect · Del removes selected</span>
       </div>
       <!-- Canvas + side panel -->
       <div style="position:relative; display:flex; height:calc(100vh - 400px); min-height:440px; border:1px solid oklch(var(--b3)); border-radius:8px; overflow:hidden">
@@ -427,12 +427,20 @@ function switchView(mode) {
     document.getElementById('toggle-flow').classList.add('btn-active');
     rebuildFlowFromSteps(steps);
   } else {
+    // Save pan/zoom before tearing down the canvas
+    var savedX = editor ? editor.canvas_x : 0;
+    var savedY = editor ? editor.canvas_y : 0;
+    var savedZoom = editor ? editor.zoom : 1;
     var steps = collectFlowSteps();
     renderListFromSteps(steps);
     document.getElementById('flow-view').style.display = 'none';
     document.getElementById('list-view').style.display = 'block';
     document.getElementById('toggle-flow').classList.remove('btn-active');
     document.getElementById('toggle-list').classList.add('btn-active');
+    // Stash so flow rebuild can restore them
+    switchView._savedX = savedX;
+    switchView._savedY = savedY;
+    switchView._savedZoom = savedZoom;
   }
   currentView = mode;
 }
@@ -619,6 +627,16 @@ function rebuildFlowFromSteps(steps) {
       }
     });
   });
+
+  // Restore pan/zoom if returning from list view
+  if (switchView._savedX != null && editor.precanvas) {
+    editor.canvas_x = switchView._savedX;
+    editor.canvas_y = switchView._savedY;
+    editor.zoom = switchView._savedZoom;
+    editor.precanvas.style.transform =
+      'translate(' + switchView._savedX + 'px, ' + switchView._savedY + 'px) scale(' + switchView._savedZoom + ')';
+    switchView._savedX = null;
+  }
 }
 
 function setupEditorEvents() {
@@ -685,6 +703,16 @@ function applyNodePanel() {
   var gate   = document.getElementById('panel-gate').value;
   var val    = document.getElementById('panel-validate').value || null;
   var oldId  = nodeIdToStepId[selectedNodeId];
+
+  if (newId && !/^[a-z0-9_]+$/.test(newId)) {
+    var idInput = document.getElementById('panel-id');
+    idInput.classList.add('input-error');
+    idInput.setCustomValidity('ID must contain only lowercase letters, digits, and underscores.');
+    idInput.reportValidity();
+    return;
+  }
+  document.getElementById('panel-id').classList.remove('input-error');
+  document.getElementById('panel-id').setCustomValidity('');
 
   if (newId && newId !== oldId) {
     delete stepIdToNodeId[oldId];

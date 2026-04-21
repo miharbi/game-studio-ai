@@ -4,6 +4,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -17,13 +18,7 @@ def _load_dot_env() -> None:
     """Load config/.env into os.environ at startup if it exists."""
     dot_env = _BASE_DIR.parents[1] / "config" / ".env"
     if dot_env.exists():
-        for line in dot_env.read_text().splitlines():
-            line = line.strip()
-            if line and "=" in line and not line.startswith("#"):
-                k, _, v = line.partition("=")
-                k, v = k.strip(), v.strip()
-                if k and v:
-                    os.environ.setdefault(k, v)
+        load_dotenv(dot_env, override=False)
 
 
 _load_dot_env()

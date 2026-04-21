@@ -16,6 +16,14 @@ _CONFIG_PATH: Path = Path(__file__).resolve().parents[2] / "config" / "models.ya
 _config: dict[str, Any] | None = None
 _config_lock = threading.Lock()
 
+
+def invalidate_config_cache() -> None:
+    """Clear the in-memory config cache so the next call re-reads models.yaml."""
+    global _config
+    with _config_lock:
+        _config = None
+
+
 # Conservative fallback when model info is unavailable.
 _DEFAULT_CONTEXT_WINDOW: int = 8192
 

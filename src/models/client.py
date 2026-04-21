@@ -65,6 +65,7 @@ class LLMClient:
         """Streaming chat. Yields text chunks as they arrive."""
         last_exc: Exception | None = None
         for attempt in range(_MAX_RETRIES):
+            started = False
             try:
                 response = litellm.completion(
                     model=self.model,
@@ -78,9 +79,12 @@ class LLMClient:
                     delta = chunk.choices[0].delta
                     content: str = getattr(delta, "content", None) or ""
                     if content:
+                        started = True
                         yield content
                 return  # stream completed successfully
             except _RETRYABLE_EXCEPTIONS as exc:
+                if started:
+                    raise  # partial output already sent — do not retry
                 last_exc = exc
                 if attempt < _MAX_RETRIES - 1:
                     time.sleep(_BASE_BACKOFF ** (attempt + 1))

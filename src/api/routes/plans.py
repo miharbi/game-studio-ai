@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import html
 import os
 import threading
 from pathlib import Path
@@ -125,7 +126,7 @@ async def start_run(body: RunRequest) -> dict[str, str]:
             "Go to Setup → API Keys to add a key, then try again.",
         )
 
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     q: asyncio.Queue[str] = asyncio.Queue()
     gate_handler = GateHandler()
     gate_handler.set_web_mode()
@@ -187,12 +188,28 @@ async def stream_run(run_id: str, request: Request) -> StreamingResponse:
                 if chunk == _DONE_SENTINEL:
                     yield "data: __DONE__\n\n"
                     break
-                safe = chunk.replace("\n", "<br>")
+                safe = html.escape(chunk).replace("\n", "<br>")
                 yield f"data: {safe}\n\n"
             except asyncio.TimeoutError:
                 yield ": keep-alive\n\n"
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+
+@router.delete(
+    "/runs/{run_id}",
+    summary="Cancel a running plan",
+    response_description="Cancellation status",
+)
+async def cancel_run(run_id: str) -> dict[str, str]:
+    """Signal the executor for *run_id* to stop after the current step.
+    If a human-review gate is pending, it is automatically rejected."""
+    executor = _active_executors.get(run_id)
+    if executor is None:
+        raise HTTPException(404, f"Run '{run_id}' is not active.")
+    executor._cancelled.set()
+    executor.gate_handler.resolve_web_gate(False, "Run cancelled by user.")
+    return {"status": "cancelling", "run_id": run_id}
 
 
 @router.get("/runs/{run_id}", response_class=HTMLResponse, include_in_schema=False)

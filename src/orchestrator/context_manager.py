@@ -5,6 +5,7 @@ Supports dynamic context sizing based on the target model.
 """
 from __future__ import annotations
 
+import threading
 from dataclasses import dataclass, field
 
 # Conservative estimate: 1 token ≈ 4 chars.
@@ -28,8 +29,12 @@ class ContextManager:
 
     _outputs: list[StepOutput] = field(default_factory=list)
 
+    def __post_init__(self) -> None:
+        self._lock = threading.Lock()
+
     def add(self, output: StepOutput) -> None:
-        self._outputs.append(output)
+        with self._lock:
+            self._outputs.append(output)
 
     def build_context(self, engine_context: str = "", model: str | None = None) -> str:
         """
@@ -39,6 +44,9 @@ class ContextManager:
         If *model* is provided, the char budget scales to that model's
         context window (using ~25% of it for prior-step context).
         """
+        with self._lock:
+            outputs = list(self._outputs)
+
         max_chars = self._max_chars(model)
 
         parts: list[str] = []
@@ -48,7 +56,7 @@ class ContextManager:
         budget: int = max_chars - sum(len(p) for p in parts)
         output_parts: list[str] = []
 
-        for out in reversed(self._outputs):
+        for out in reversed(outputs):
             block = _format_output(out)
             if len(block) > budget:
                 block = block[:budget] + "\n[...truncated]"
@@ -61,7 +69,8 @@ class ContextManager:
         return "\n\n".join(parts)
 
     def clear(self) -> None:
-        self._outputs.clear()
+        with self._lock:
+            self._outputs.clear()
 
     @staticmethod
     def _max_chars(model: str | None) -> int:

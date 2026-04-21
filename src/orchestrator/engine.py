@@ -5,6 +5,8 @@ Supports resuming interrupted runs by run_id.
 """
 from __future__ import annotations
 
+import concurrent.futures
+import threading
 import uuid
 from pathlib import Path
 from typing import Any, Callable
@@ -28,7 +30,7 @@ class PlanStep:
         self.id: str = raw.get("id", raw["agent"])
         self.agent: str = raw["agent"]
         self.action: str = raw["action"]
-        self.depends_on: str | None = raw.get("depends_on")
+        self.depends_on: list[str] = raw.get("depends_on") or []
         self.gate: GateType = GateType(raw.get("gate", "auto"))
         self.validate_as: str | None = raw.get("validate_as")
 
@@ -66,6 +68,7 @@ class PlanExecutor:
         self.gate_handler = gate_handler or GateHandler()
         self.db = DB()
         self.output_callback = output_callback
+        self._cancelled = threading.Event()
         self._engine_context: str = (
             load_engine_context(self.engine) if self.engine else ""
         )
@@ -94,71 +97,124 @@ class PlanExecutor:
         return executor
 
     def run(self) -> None:
-        """Execute all plan steps in order, respecting gates and saved state."""
+        """Execute plan steps respecting the dependency graph.
+
+        Independent steps (no shared deps) run concurrently via a thread pool.
+        Steps with dependencies wait until all their parents have completed.
+        """
         self.db.ensure_run(self.run_id, str(self.plan.path), self.engine or "")
-        completed_ids = {
-            s.step_id for s in self.db.get_completed_steps(self.run_id)
-        }
+        already_done = {s.step_id for s in self.db.get_completed_steps(self.run_id)}
 
         self._emit(f"\n🎬  Plan: {self.plan.task}  [run_id={self.run_id}]\n")
 
+        # Build DAG: in-degree counts and reverse-adjacency list.
+        step_map = {s.id: s for s in self.plan.steps}
+        in_degree: dict[str, int] = {}
+        dependents: dict[str, list[str]] = {s.id: [] for s in self.plan.steps}
         for step in self.plan.steps:
-            if step.id in completed_ids:
-                self._emit(f"  ↩  Skipping (already completed): {step.id}")
-                continue
+            pending_deps = [d for d in step.depends_on if d in step_map and d not in already_done]
+            in_degree[step.id] = len(pending_deps)
+            for dep in pending_deps:
+                dependents[dep].append(step.id)
 
-            agent_def = self.loader.load(step.agent)
-            self._emit(
-                f"\n▶  Step: {step.id}  agent={step.agent}  tier={agent_def.tier}"
-            )
+        halt = threading.Event()  # set on gate rejection; checked each step
+        dep_lock = threading.Lock()  # guards in_degree mutations across threads
 
-            if self.dry_run:
-                self._emit(f"  [dry-run] Would call: {agent_def.name} via {get_model(agent_def.tier, self.engine)}")
-                continue
+        initial_ready = [
+            s for s in self.plan.steps
+            if in_degree[s.id] == 0 and s.id not in already_done
+        ]
 
-            output = self._run_step(step, agent_def)
+        with concurrent.futures.ThreadPoolExecutor() as pool:
+            pending: dict[concurrent.futures.Future[None], PlanStep] = {
+                pool.submit(self._execute_step, step, halt): step
+                for step in initial_ready
+            }
 
-            if step.validate_as:
-                errors = validate_output(output, step.validate_as)
-                if errors:
-                    self._emit(f"  ⚠  Validation warnings: {errors}")
+            while pending:
+                done, _ = concurrent.futures.wait(
+                    list(pending.keys()),
+                    return_when=concurrent.futures.FIRST_COMPLETED,
+                )
+                for fut in done:
+                    step = pending.pop(fut)
+                    exc = fut.exception()
+                    if exc or halt.is_set():
+                        halt.set()
+                        continue
+                    # Unlock dependents whose in-degree just hit zero.
+                    with dep_lock:
+                        for child_id in dependents.get(step.id, []):
+                            in_degree[child_id] -= 1
+                            if in_degree[child_id] == 0:
+                                child = step_map[child_id]
+                                f = pool.submit(self._execute_step, child, halt)
+                                pending[f] = child
 
-            # Signal web UI that a gate is pending before blocking
-            if step.gate == GateType.HUMAN_REVIEW:
-                self._emit(f"__GATE__:{step.id}")
+        if self._cancelled.is_set():
+            self._emit("\n🚫  Run cancelled.")
+            self.db.mark_run_failed(self.run_id)
+        elif halt.is_set():
+            pass  # mark_run_failed already called inside _execute_step
+        else:
+            self.db.mark_run_complete(self.run_id)
+            self._emit(f"\n✅  Plan complete. Output in output/pending/")
 
-            gate_result = self.gate_handler.evaluate(
-                gate_type=step.gate,
-                step_id=step.id,
-                agent_output=output,
-                run_id=self.run_id,
-            )
+    def _execute_step(self, step: PlanStep, halt: threading.Event) -> None:
+        """Execute a single step in its own thread. Sets halt on gate rejection."""
+        if halt.is_set() or self._cancelled.is_set():
+            return
 
-            self.db.save_step(
-                run_id=self.run_id,
+        agent_def = self.loader.load(step.agent)
+        self._emit(f"\n▶  Step: {step.id}  agent={step.agent}  tier={agent_def.tier}")
+
+        if self.dry_run:
+            self._emit(f"  [dry-run] Would call: {agent_def.name} via {get_model(agent_def.tier, self.engine)}")
+            return
+
+        output = self._run_step(step, agent_def)
+
+        if halt.is_set() or self._cancelled.is_set():
+            return
+
+        if step.validate_as:
+            errors = validate_output(output, step.validate_as)
+            if errors:
+                self._emit(f"  ⚠  Validation warnings: {errors}")
+
+        # Signal web UI that a gate checkpoint is pending before blocking.
+        if step.gate == GateType.HUMAN_REVIEW:
+            self._emit(f"__GATE__:{step.id}")
+
+        gate_result = self.gate_handler.evaluate(
+            gate_type=step.gate,
+            step_id=step.id,
+            agent_output=output,
+            run_id=self.run_id,
+        )
+
+        self.db.save_step(
+            run_id=self.run_id,
+            step_id=step.id,
+            agent_name=step.agent,
+            output=output,
+            gate_approved=gate_result.approved,
+            gate_feedback=gate_result.feedback,
+        )
+
+        self.context.add(
+            StepOutput(
                 step_id=step.id,
                 agent_name=step.agent,
-                output=output,
-                gate_approved=gate_result.approved,
+                content=output,
                 gate_feedback=gate_result.feedback,
             )
+        )
 
-            self.context.add(
-                StepOutput(
-                    step_id=step.id,
-                    agent_name=step.agent,
-                    content=output,
-                    gate_feedback=gate_result.feedback,
-                )
-            )
-
-            if not gate_result.approved:
-                self._emit(f"\n✋  Step '{step.id}' rejected. Plan halted.")
-                self.db.mark_run_failed(self.run_id)
-                return
-
-        self.db.mark_run_complete(self.run_id)
-        self._emit(f"\n✅  Plan complete. Output in output/pending/")
+        if not gate_result.approved:
+            self._emit(f"\n✋  Step '{step.id}' rejected. Plan halted.")
+            self.db.mark_run_failed(self.run_id)
+            halt.set()
 
     def _run_step(self, step: PlanStep, agent: AgentDefinition) -> str:
         """Call the LLM for a single step and return the full output."""

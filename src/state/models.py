@@ -1,7 +1,7 @@
 """SQLModel table definitions for run state persistence."""
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from sqlmodel import Field, SQLModel
@@ -14,8 +14,8 @@ class PlanRun(SQLModel, table=True):
     plan_path: str
     engine: str = ""
     status: str = "running"  # running | complete | failed
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class StepResult(SQLModel, table=True):
@@ -28,4 +28,4 @@ class StepResult(SQLModel, table=True):
     output: str
     gate_approved: bool = True
     gate_feedback: Optional[str] = None
-    completed_at: datetime = Field(default_factory=datetime.utcnow)
+    completed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

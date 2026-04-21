@@ -26,6 +26,16 @@ def validate_output(content: str, schema_type: str) -> list[str]:
     return fn(content)
 
 
+# Exported list of valid schema type names — single source of truth used by the UI.
+SCHEMA_TYPES: list[str] = [
+    "json",
+    "level_json",
+    "sprite_spec",
+    "code_block",
+    "feature_design",
+]
+
+
 def _validate_json(content: str) -> list[str]:
     text = _extract_json_block(content)
     try:

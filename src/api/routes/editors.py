@@ -11,6 +11,9 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
+from src.validators.schema import SCHEMA_TYPES
+from src.models.router import invalidate_config_cache
+
 router = APIRouter(prefix="/edit")
 
 _ROOT: Path = Path(__file__).resolve().parents[3]
@@ -160,7 +163,7 @@ def _detect_engine(project_path: str) -> dict | None:
 
 
 def _list_schema_types() -> list[str]:
-    return ["json", "level_json", "sprite_spec", "code_block", "feature_design"]
+    return list(SCHEMA_TYPES)
 
 
 # ── build helpers ───────────────────────────────────────────────────────────
@@ -374,7 +377,7 @@ async def plan_edit(request: Request, filename: str) -> HTMLResponse:
             "plan": plan,
             "filename": filename,
             "agents_list": _list_agents(),
-            "gate_options": ["auto", "human_review"],
+            "gate_options": ["auto", "human_review", "conditional"],
             "schema_types": _list_schema_types(),
         },
     )
@@ -482,6 +485,7 @@ async def config_save(body: ConfigBody) -> dict:
     except yaml.YAMLError as exc:
         raise HTTPException(422, f"Invalid YAML: {exc}")
     (_CONFIG_DIR / "models.yaml").write_text(body.content)
+    invalidate_config_cache()
     result: dict[str, Any] = {"status": "saved", "file": "models.yaml"}
     if body.project_path is not None:
         _CONFIG_DIR.mkdir(parents=True, exist_ok=True)

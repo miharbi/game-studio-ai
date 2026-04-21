@@ -1,7 +1,7 @@
 """Database access layer using SQLModel + SQLite."""
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -63,7 +63,7 @@ class DB:
             session.add(result)
             run = session.get(PlanRun, run_id)
             if run:
-                run.updated_at = datetime.utcnow()
+                run.updated_at = datetime.now(timezone.utc)
                 session.add(run)
             session.commit()
 
@@ -78,7 +78,7 @@ class DB:
             run = session.get(PlanRun, run_id)
             if run:
                 run.status = status
-                run.updated_at = datetime.utcnow()
+                run.updated_at = datetime.now(timezone.utc)
                 session.add(run)
                 session.commit()
 
