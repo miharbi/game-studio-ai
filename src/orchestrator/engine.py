@@ -20,6 +20,8 @@ from src.orchestrator.context_manager import ContextManager, StepOutput
 from src.orchestrator.gate import GateHandler, GateType, GateResult
 from src.engines.detect import load_engine_context
 from src.state.db import DB
+
+_SETTINGS_PATH: Path = Path(__file__).resolve().parents[2] / "config" / "settings.yaml"
 from src.validators.schema import validate_output
 
 _AGENTS_DIR: Path = Path(__file__).resolve().parents[2] / "agents"
@@ -72,6 +74,8 @@ class PlanExecutor:
         self._engine_context: str = (
             load_engine_context(self.engine) if self.engine else ""
         )
+        # Spec files are loaded lazily on the first step execution.
+        self._spec_engine_ctx: dict | None = None
 
     @classmethod
     def from_run_id(cls, run_id: str) -> "PlanExecutor":
@@ -216,6 +220,28 @@ class PlanExecutor:
             self.db.mark_run_failed(self.run_id)
             halt.set()
 
+    def _get_spec_engine_ctx(self) -> dict:
+        """Lazy-load spec files from project_path in config/settings.yaml."""
+        if self._spec_engine_ctx is not None:
+            return self._spec_engine_ctx
+
+        project_path_str = ""
+        if _SETTINGS_PATH.exists():
+            try:
+                import yaml as _yaml
+                data = _yaml.safe_load(_SETTINGS_PATH.read_text()) or {}
+                project_path_str = data.get("project_path", "")
+            except Exception:
+                pass
+
+        if project_path_str:
+            from src.engines.loader import load_engine_context as _load_full
+            self._spec_engine_ctx = _load_full(Path(project_path_str))
+        else:
+            self._spec_engine_ctx = {}
+
+        return self._spec_engine_ctx
+
     def _run_step(self, step: PlanStep, agent: AgentDefinition) -> str:
         """Call the LLM for a single step and return the full output."""
         model = agent.model_override or get_model(agent.tier, self.engine)
@@ -225,6 +251,14 @@ class PlanExecutor:
         system = agent.system_prompt
         if context_block:
             system = f"{system}\n\n---\n\n{context_block}"
+
+        # Inject per-agent spec context when spec files are available.
+        spec_ctx = self._get_spec_engine_ctx()
+        if spec_ctx.get("spec_files"):
+            from src.orchestrator.context import build_agent_context
+            agent_spec = build_agent_context(agent.name, spec_ctx)
+            if agent_spec:
+                system = f"{system}\n\n---\n\n{agent_spec}"
 
         messages = [
             {"role": "system", "content": system},

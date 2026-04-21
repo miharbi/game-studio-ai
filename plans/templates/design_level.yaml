@@ -2,11 +2,17 @@ task: design_level
 description: >
   Full pipeline for designing a new game level/world — from concept
   through layout, wave composition, art direction, and technical review.
-engine: null
+  For Godot 4 / Barrio Bravo projects: pre-compute the structural skeleton
+  from levels_fallback.json before running the level_designer step, then
+  validate with barrio_bravo_world before the final merge.
+engine: godot4
 input: >
-  Describe the new level. Include: world number (e.g. World02), theme,
+  Describe the new level. Include: world number (e.g. World03), theme,
   setting (neighborhood, time of day), target difficulty relative to
-  the previous world, and any narrative context.
+  the previous world, boss character (boss_2 / boss_3), and any
+  narrative context. Paste the output of compute_skeleton() here as the
+  structural skeleton so agents work from pre-calculated wave counts,
+  enemy types, and prop placements.
 
 steps:
   - id: level_concept
@@ -15,35 +21,45 @@ steps:
       Design the level concept: pacing structure, number of waves,
       enemy progression, boss concept, and player emotional arc from
       start to completion. Apply the difficulty scaling guidelines.
+      Reference the structural skeleton in the input — do not change
+      scroll_limit_px, wave trigger_x values, or enemy types.
     gate: human_review
     validate_as: feature_design
 
   - id: level_layout
     agent: level_designer
     action: >
-      Using the approved concept, produce a complete schema-valid JSON
-      world block including all waves, enemy placements, trigger_x values,
-      props (with at least one health pickup per 2 combat waves), and
-      boss wave. Include a difficulty analysis section.
+      Using the approved concept and the structural skeleton in the input,
+      produce a complete schema-valid JSON world block. Fill in:
+      name_display, music_key, boss.name, boss.intro_dialogue,
+      boss.defeat_dialogue, all wave intro dialogue lines, and
+      dialogues_pool (min 11 entries). Keep all structural values
+      (waves, enemies, props, trigger_x, scroll_limit_px) from the skeleton.
+      Strip _meta_boss_hp before outputting. Include a difficulty analysis.
     depends_on: [level_concept]
     gate: auto
-    validate_as: level_json
+    validate_as: barrio_bravo_world
 
   - id: world_dressing
     agent: world_builder
     action: >
       Fill the world with environmental detail: complete all 20
-      art_direction keys, place scenario_ads, and enrich the props list
-      with throwables and destructibles. Ensure props are spread across
-      the scroll_limit and not clustered.
+      art_direction keys, place scenario_ads (omit x — assigned at merge),
+      and enrich the props list with throwables and destructibles.
+      Ensure props are spread across the scroll_limit and not clustered.
+      Reference the Game Spec Context art_style and sample_assets.
     depends_on: [level_layout]
     gate: auto
+    validate_as: barrio_bravo_world
 
   - id: technical_review
     agent: technical_director
     action: >
-      Review the complete world JSON for schema compliance, performance
-      concerns (prop count, wave density), and consistency with the
-      existing level architecture. Approve or reject with specific notes.
+      Review the complete world JSON for schema compliance (barrio_bravo_world),
+      performance concerns (prop count, wave density), and consistency with
+      the existing level architecture. Verify _meta_boss_hp has been stripped
+      and note the HP value to apply to enemies[boss_type].health in
+      levels_fallback.json. Approve or reject with specific notes.
     depends_on: [world_dressing]
     gate: human_review
+

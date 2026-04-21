@@ -19,6 +19,7 @@ def validate_output(content: str, schema_type: str) -> list[str]:
         "sprite_spec": _validate_sprite_spec,
         "code_block": _validate_code_block,
         "feature_design": _validate_feature_design,
+        "barrio_bravo_world": _validate_barrio_bravo_world,
     }
     fn = validators.get(schema_type)
     if fn is None:
@@ -33,6 +34,7 @@ SCHEMA_TYPES: list[str] = [
     "sprite_spec",
     "code_block",
     "feature_design",
+    "barrio_bravo_world",
 ]
 
 
@@ -89,6 +91,17 @@ def _validate_feature_design(content: str) -> list[str]:
     if missing:
         return [f"Feature design missing sections: {missing}"]
     return []
+
+
+def _validate_barrio_bravo_world(content: str) -> list[str]:
+    """Validate a Barrio Bravo world JSON block via the Godot 4 world validator."""
+    json_errors = _validate_json(content)
+    if json_errors:
+        return json_errors
+    from src.validators.godot4_world import validate_world
+    data: dict[str, Any] = json.loads(_extract_json_block(content))
+    result = validate_world(data)
+    return result.errors
 
 
 def _extract_json_block(content: str) -> str:

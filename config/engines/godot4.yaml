@@ -34,6 +34,10 @@ sprite_output:
     process/fix_alpha_border=true
     process/premult_alpha=false
     detect_3d/compress_to=1
+spec_files:
+  - "data/game_spec.json"
+  - "data/level_template.json"
+
 agent_context: |
   Engine: Godot 4 (GDScript)
   - All variables, parameters, and return types must be statically typed
