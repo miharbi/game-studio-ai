@@ -59,6 +59,13 @@ async function createAgent() {
   var tier = document.getElementById('new-tier').value;
   var name = document.getElementById('new-agent-name').value.trim();
   if (!name) { showToast('Enter a name', 'warning'); return; }
+  if (!/^[a-z0-9_]+$/.test(name)) {
+    var inp = document.getElementById('new-agent-name');
+    inp.classList.add('input-error');
+    showToast('Agent name must be snake_case (lowercase letters, digits, underscores only)', 'warning');
+    return;
+  }
+  document.getElementById('new-agent-name').classList.remove('input-error');
   var body = {
     name: name,
     tier: parseInt(tier.replace('tier','')),

@@ -36,6 +36,13 @@
 async function createPlan() {
   var name = document.getElementById('new-plan-name').value.trim();
   if (!name) { showToast('Enter a task name', 'warning'); return; }
+  if (!/^[a-z0-9_]+$/.test(name)) {
+    var inp = document.getElementById('new-plan-name');
+    inp.classList.add('input-error');
+    showToast('Task name must be snake_case (lowercase letters, digits, underscores only)', 'warning');
+    return;
+  }
+  document.getElementById('new-plan-name').classList.remove('input-error');
   var body = {
     task: name,
     description: 'Describe this plan.',

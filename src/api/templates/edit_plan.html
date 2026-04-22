@@ -230,10 +230,12 @@
               </div>
               <div class="form-control">
                 <label class="label py-0"><span class="label-text text-xs">Depends On</span></label>
-                <input type="text" class="input input-bordered input-sm step-depends"
-                  value="{{ step.depends_on | join(', ') if step.depends_on else '' }}"
-                  placeholder="step_id1, step_id2"
-                  title="Comma-separated step IDs that must complete before this step runs">
+                <select multiple class="select select-bordered select-sm step-depends" size="3"
+                  title="Hold Ctrl/Cmd to select multiple. Steps that must complete before this one runs.">
+                  {% for other in plan.steps %}{% if other.id != step.id %}
+                  <option value="{{ other.id }}"{% if step.depends_on and other.id in step.depends_on %} selected{% endif %}>{{ other.id }}</option>
+                  {% endif %}{% endfor %}
+                </select>
               </div>
               <div class="form-control">
                 <label class="label py-0"><span class="label-text text-xs">Validate As</span></label>
@@ -297,11 +299,11 @@
               </div>
               <div class="form-control">
                 <label class="label py-0"><span class="label-text text-xs">Action</span></label>
-                <textarea id="panel-action" class="textarea textarea-bordered textarea-sm" rows="5"></textarea>
+                <textarea id="panel-action" class="textarea textarea-bordered textarea-sm" rows="3"></textarea>
               </div>
               <div class="form-control">
                 <label class="label py-0"><span class="label-text text-xs">Gate</span></label>
-                <select id="panel-gate" class="select select-bordered select-sm">
+                <select id="panel-gate" class="select select-bordered select-sm" title="auto = continue, human = pause for approval">
                   {% for g in gate_options %}
                   <option value="{{ g }}">{{ g }}</option>
                   {% endfor %}
@@ -315,6 +317,11 @@
                   <option value="{{ s }}">{{ s }}</option>
                   {% endfor %}
                 </select>
+              </div>
+              <div class="form-control" id="panel-deps-row" style="display:none">
+                <label class="label py-0"><span class="label-text text-xs">Depends On</span></label>
+                <div id="panel-deps" class="flex flex-wrap gap-1 min-h-[1.5rem]"></div>
+                <label class="label py-0"><span class="label-text-alt text-xs opacity-40">Set by drawing edges on the canvas</span></label>
               </div>
               <p class="text-xs opacity-40 mt-1">Connect <em>depends_on</em> by dragging edges between nodes on the canvas.</p>
               <button class="btn btn-sm btn-primary mt-2" onclick="applyNodePanel()">Apply</button>
@@ -454,8 +461,43 @@ new Sortable(document.getElementById('steps-container'), {
 
 // Init flow view on load (it is the default)
 document.addEventListener('DOMContentLoaded', function() {
+  syncDependsOnSelects();
   rebuildFlowFromSteps(collectSteps());
 });
+
+// ── Depends On multi-select helpers ──────────────────────────────────────────
+function getDependsOnSelectHTML(currentId, selectedDeps) {
+  var options = [];
+  document.querySelectorAll('.step-card .step-id').forEach(function(inp) {
+    var id = inp.value.trim();
+    if (id && id !== currentId) {
+      var sel = (selectedDeps || []).indexOf(id) !== -1 ? ' selected' : '';
+      options.push('<option value="' + esc(id) + '"' + sel + '>' + esc(id) + '</option>');
+    }
+  });
+  return '<select multiple class="select select-bordered select-sm step-depends" size="3"'
+    + ' title="Hold Ctrl/Cmd to select multiple. Steps that must complete before this one runs.">'
+    + options.join('') + '</select>';
+}
+
+function syncDependsOnSelects() {
+  var allIds = [];
+  document.querySelectorAll('.step-card .step-id').forEach(function(inp) {
+    var id = inp.value.trim();
+    if (id) allIds.push(id);
+  });
+  document.querySelectorAll('.step-card').forEach(function(card) {
+    var myId = card.querySelector('.step-id').value.trim();
+    var sel = card.querySelector('.step-depends');
+    var currentlySelected = Array.from(sel.selectedOptions).map(function(o) { return o.value; });
+    sel.innerHTML = allIds
+      .filter(function(id) { return id !== myId; })
+      .map(function(id) {
+        var isSelected = currentlySelected.indexOf(id) !== -1 ? ' selected' : '';
+        return '<option value="' + esc(id) + '"' + isSelected + '>' + esc(id) + '</option>';
+      }).join('');
+  });
+}
 
 function renumberSteps() {
   document.querySelectorAll('.step-card').forEach(function(card, i) {
@@ -470,17 +512,17 @@ function buildStepCardHTML(step, index) {
     + '<div class="flex items-center gap-2 mb-3">' + dragHandle
     + '<span class="badge badge-primary step-badge">Step ' + (index + 1) + '</span>'
     + '<div class="flex-1"></div>' + removeBtn + '</div>'
-    + '<div class="grid grid-cols-1 md:grid-cols-2 gap-3">'
+    + '<div class="grid grid-cols-1 md:grid-cols-3 gap-3">'
     + '<div class="form-control"><label class="label py-0"><span class="label-text text-xs">ID</span></label>'
     + '<input type="text" class="input input-bordered input-sm step-id" value="' + esc(step.id) + '"></div>'
-    + '<div class="form-control"><label class="label py-0"><span class="label-text text-xs">Agent</span></label>'
+    + '<div class="form-control md:col-span-2"><label class="label py-0"><span class="label-text text-xs">Agent</span></label>'
     + '<select class="select select-bordered select-sm step-agent">' + getAgentOptions(step.agent) + '</select></div>'
     + '<div class="form-control md:col-span-2"><label class="label py-0"><span class="label-text text-xs">Action</span></label>'
     + '<textarea class="textarea textarea-bordered textarea-sm step-action" rows="3">' + esc(step.action || '') + '</textarea></div>'
     + '<div class="form-control"><label class="label py-0"><span class="label-text text-xs">Gate</span></label>'
     + '<select class="select select-bordered select-sm step-gate">' + getGateOptions(step.gate || 'auto') + '</select></div>'
     + '<div class="form-control"><label class="label py-0"><span class="label-text text-xs">Depends On</span></label>'
-    + '<input type="text" class="input input-bordered input-sm step-depends" value="' + esc((step.depends_on || []).join(', ')) + '" placeholder="step_id1, step_id2"></div>'
+    + getDependsOnSelectHTML(step.id, step.depends_on || []) + '</div>'
     + '<div class="form-control"><label class="label py-0"><span class="label-text text-xs">Validate As</span></label>'
     + '<select class="select select-bordered select-sm step-validate">' + getSchemaOptions(step.validate_as || '') + '</select></div>'
     + '</div></div>';
@@ -494,23 +536,25 @@ function addStep() {
   card.className = 'step-card card bg-base-300 mb-3 shadow-sm';
   card.innerHTML = buildStepCardHTML(step, index);
   container.appendChild(card);
+  syncDependsOnSelects();
 }
 
 function removeStep(btn) {
   btn.closest('.step-card').remove();
   renumberSteps();
+  syncDependsOnSelects();
 }
 
 function collectSteps() {
   var steps = [];
   document.querySelectorAll('.step-card').forEach(function(card) {
-    var dep = card.querySelector('.step-depends').value.trim();
+    var depEl = card.querySelector('.step-depends');
     steps.push({
       id:          card.querySelector('.step-id').value.trim(),
       agent:       card.querySelector('.step-agent').value,
       action:      card.querySelector('.step-action').value.trim(),
       gate:        card.querySelector('.step-gate').value,
-      depends_on:  dep ? dep.split(',').map(function(s){ return s.trim(); }).filter(Boolean) : [],
+      depends_on:  Array.from(depEl.selectedOptions).map(function(o) { return o.value; }),
       validate_as: card.querySelector('.step-validate').value || null,
     });
   });
@@ -527,6 +571,7 @@ function renderListFromSteps(steps) {
     container.appendChild(card);
   });
   new Sortable(container, { handle: '.drag-handle', animation: 150, ghostClass: 'opacity-30', onEnd: renumberSteps });
+  syncDependsOnSelects();
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -687,6 +732,31 @@ function openNodePanel(data) {
   document.getElementById('panel-action').value   = data.action   || '';
   document.getElementById('panel-gate').value     = data.gate     || 'auto';
   document.getElementById('panel-validate').value = data.validate_as || '';
+
+  // Show incoming connections (depends_on) as read-only badges
+  var depsRow = document.getElementById('panel-deps-row');
+  var depsEl  = document.getElementById('panel-deps');
+  var deps = [];
+  if (selectedNodeId != null && editor) {
+    var exported = editor.export();
+    var nodes    = exported.drawflow.Home.data;
+    var nodeData = nodes[selectedNodeId];
+    if (nodeData && nodeData.inputs && nodeData.inputs.input_1) {
+      nodeData.inputs.input_1.connections.forEach(function(c) {
+        var depStepId = nodeIdToStepId[parseInt(c.node)];
+        if (depStepId) deps.push(depStepId);
+      });
+    }
+  }
+  if (deps.length) {
+    depsEl.innerHTML = deps.map(function(d) {
+      return '<span class="badge badge-outline badge-sm">' + esc(d) + '</span>';
+    }).join('');
+    depsRow.style.display = '';
+  } else {
+    depsRow.style.display = 'none';
+  }
+
   document.getElementById('node-panel').classList.add('open');
 }
 
@@ -770,7 +840,46 @@ async function savePlan() {
   var btn = document.getElementById('save-btn');
   btn.disabled = true;
   btn.innerHTML = 'Saving…';
+
+  // Validate step IDs in list view
+  if (currentView === 'list') {
+    var idError = false;
+    document.querySelectorAll('.step-id').forEach(function(inp) {
+      if (!/^[a-z0-9_]+$/.test(inp.value.trim())) {
+        inp.classList.add('input-error');
+        idError = true;
+      } else {
+        inp.classList.remove('input-error');
+      }
+    });
+    if (idError) {
+      showToast('Step IDs must be lowercase letters, digits, and underscores only', 'warning');
+      btn.disabled = false;
+      btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg> Save';
+      return;
+    }
+  }
+
   var steps = currentView === 'flow' ? collectFlowSteps() : collectSteps();
+
+  // Check for duplicate step IDs
+  var seen = {}, dupIds = [];
+  steps.forEach(function(s) {
+    if (seen[s.id]) { if (dupIds.indexOf(s.id) === -1) dupIds.push(s.id); }
+    else seen[s.id] = true;
+  });
+  if (dupIds.length) {
+    showToast('Duplicate step IDs: ' + dupIds.join(', '), 'error');
+    if (currentView === 'list') {
+      document.querySelectorAll('.step-id').forEach(function(inp) {
+        if (dupIds.indexOf(inp.value.trim()) !== -1) inp.classList.add('input-error');
+      });
+    }
+    btn.disabled = false;
+    btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg> Save';
+    return;
+  }
+
   var body = {
     task:        document.getElementById('plan-task').value.trim(),
     description: document.getElementById('plan-description').value.trim(),
