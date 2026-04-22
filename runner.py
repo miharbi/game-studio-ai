@@ -178,8 +178,23 @@ def desktop(
         except (httpx.ConnectError, httpx.TimeoutException):
             time.sleep(0.1)
 
-    webview.create_window("Game Studio AI", url, width=1280, height=800)
-    webview.start()
+    icon_path = str(Path(__file__).resolve().parent / "src" / "api" / "static" / "icon.png")
+
+    window = webview.create_window("Game Studio AI", url, width=1280, height=800)
+
+    def _set_icon():
+        # Qt backend: set the window icon via QApplication
+        try:
+            from PyQt5.QtGui import QIcon
+            from PyQt5.QtWidgets import QApplication
+            app_qt = QApplication.instance()
+            if app_qt:
+                app_qt.setWindowIcon(QIcon(icon_path))
+                window.native.setWindowIcon(QIcon(icon_path))
+        except Exception:
+            pass
+
+    webview.start(func=_set_icon)
 
 
 @app.command(name="list-agents")

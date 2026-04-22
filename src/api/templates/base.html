@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}Game Studio AI{% endblock %}</title>
+  <link rel="icon" type="image/png" href="/static/favicon.png">
   {% if local_assets %}
   <link href="/static/vendor/daisyui.min.css" rel="stylesheet" type="text/css" />
   <script src="https://cdn.tailwindcss.com"></script>
@@ -33,11 +34,26 @@
       align-items: center;
       gap: 0.5rem;
     }
+    /* Active nav item — explicit hex colors so contrast is guaranteed in every theme
+       and every browser, regardless of oklch support or saved theme. */
+    .menu li > a.active {
+      background-color: #2b3440 !important; /* neutral, works on light sidebars */
+      color: #d7dde4 !important;
+      font-weight: 600;
+    }
+    [data-theme=dark] .menu li > a.active,
+    [data-theme=night] .menu li > a.active,
+    [data-theme=dracula] .menu li > a.active,
+    [data-theme=business] .menu li > a.active,
+    [data-theme=coffee] .menu li > a.active {
+      background-color: #3d4554 !important; /* lighter shade visible on dark sidebars */
+      color: #e2e8f0 !important;
+    }
   </style>
   <script>
     /* Apply saved theme before first paint to prevent FOUC */
     (function() {
-      var t = localStorage.getItem('gs-theme') || 'dark';
+      var t = localStorage.getItem('gs-theme') || 'light';
       document.documentElement.setAttribute('data-theme', t);
     })();
   </script>
@@ -62,25 +78,25 @@
           <button id="help-btn" class="btn btn-sm btn-ghost btn-circle opacity-60 hover:opacity-100" style="display:none" onclick="document.getElementById('help-modal').showModal()" title="Help for this page">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
           </button>
-          <div class="dropdown dropdown-end">
-            <button tabindex="0" class="btn btn-ghost btn-sm btn-square" title="Change theme">
+          <div style="position:relative">
+            <button class="btn btn-ghost btn-sm btn-square" title="Change theme" onclick="toggleThemeDropdown(event)">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"/>
               </svg>
             </button>
-            <ul tabindex="0" class="dropdown-content menu bg-base-200 rounded-box shadow-lg p-1 w-40 z-50 mt-1">
-              <li class="menu-title"><span class="text-xs opacity-50">Light</span></li>
-              <li><a data-theme-item="light" onclick="setTheme('light')">Light</a></li>
-              <li><a data-theme-item="corporate" onclick="setTheme('corporate')">Corporate</a></li>
-              <li><a data-theme-item="winter" onclick="setTheme('winter')">Winter</a></li>
-              <li><a data-theme-item="nord" onclick="setTheme('nord')">Nord</a></li>
-              <li class="menu-title"><span class="text-xs opacity-50">Dark</span></li>
-              <li><a data-theme-item="dark" onclick="setTheme('dark')">Dark</a></li>
-              <li><a data-theme-item="night" onclick="setTheme('night')">Night</a></li>
-              <li><a data-theme-item="dracula" onclick="setTheme('dracula')">Dracula</a></li>
-              <li><a data-theme-item="business" onclick="setTheme('business')">Business</a></li>
-              <li><a data-theme-item="coffee" onclick="setTheme('coffee')">Coffee</a></li>
-            </ul>
+            <div id="theme-menu" style="display:none;position:absolute;right:0;top:100%;margin-top:4px;z-index:9999;min-width:160px;background:oklch(var(--b2));border:1px solid oklch(var(--b3));border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.18);padding:4px 0">
+              <div style="padding:4px 12px 2px;font-size:0.7rem;opacity:0.5;text-transform:uppercase;letter-spacing:0.05em">Light</div>
+              <a data-theme-item="light" onclick="setTheme('light')" style="display:block;padding:6px 12px;cursor:pointer;font-size:0.875rem">Light</a>
+              <a data-theme-item="corporate" onclick="setTheme('corporate')" style="display:block;padding:6px 12px;cursor:pointer;font-size:0.875rem">Corporate</a>
+              <a data-theme-item="winter" onclick="setTheme('winter')" style="display:block;padding:6px 12px;cursor:pointer;font-size:0.875rem">Winter</a>
+              <a data-theme-item="nord" onclick="setTheme('nord')" style="display:block;padding:6px 12px;cursor:pointer;font-size:0.875rem">Nord</a>
+              <div style="padding:4px 12px 2px;margin-top:4px;font-size:0.7rem;opacity:0.5;text-transform:uppercase;letter-spacing:0.05em">Dark</div>
+              <a data-theme-item="dark" onclick="setTheme('dark')" style="display:block;padding:6px 12px;cursor:pointer;font-size:0.875rem">Dark</a>
+              <a data-theme-item="night" onclick="setTheme('night')" style="display:block;padding:6px 12px;cursor:pointer;font-size:0.875rem">Night</a>
+              <a data-theme-item="dracula" onclick="setTheme('dracula')" style="display:block;padding:6px 12px;cursor:pointer;font-size:0.875rem">Dracula</a>
+              <a data-theme-item="business" onclick="setTheme('business')" style="display:block;padding:6px 12px;cursor:pointer;font-size:0.875rem">Business</a>
+              <a data-theme-item="coffee" onclick="setTheme('coffee')" style="display:block;padding:6px 12px;cursor:pointer;font-size:0.875rem">Coffee</a>
+            </div>
           </div>
         </div>
       </div>
@@ -166,19 +182,31 @@
     <form method="dialog" class="modal-backdrop"><button>close</button></form>
   </dialog>
   <script>
-    // Mark active theme in the dropdown menu
+    // Mark active theme in the menu
     (function() {
       var t = localStorage.getItem('gs-theme') || 'dark';
       var el = document.querySelector('[data-theme-item="' + t + '"]');
-      if (el) el.classList.add('active');
+      if (el) el.style.fontWeight = '700';
     })();
+    function toggleThemeDropdown(e) {
+      e.stopPropagation();
+      var m = document.getElementById('theme-menu');
+      m.style.display = m.style.display === 'none' ? 'block' : 'none';
+    }
     function setTheme(t) {
       document.documentElement.setAttribute('data-theme', t);
       localStorage.setItem('gs-theme', t);
       document.querySelectorAll('[data-theme-item]').forEach(function(el) {
-        el.classList.toggle('active', el.dataset.themeItem === t);
+        el.style.fontWeight = el.dataset.themeItem === t ? '700' : '';
       });
+      var m = document.getElementById('theme-menu');
+      if (m) m.style.display = 'none';
     }
+    // Close menu when clicking outside
+    document.addEventListener('click', function() {
+      var m = document.getElementById('theme-menu');
+      if (m) m.style.display = 'none';
+    });
     // Toast notifications
     function showToast(msg, type) {
       type = type || 'info';
