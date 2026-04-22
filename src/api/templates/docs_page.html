@@ -21,6 +21,20 @@
     [data-theme=dracula]  { --fallback-b1:#282a36; --fallback-b2:#232530; --fallback-b3:#1f202a; --fallback-bc:#f8f8f2 }
     [data-theme=business] { --fallback-b1:#202020; --fallback-b2:#1c1c1c; --fallback-b3:#181818; --fallback-bc:#cdcdcd }
     [data-theme=coffee]   { --fallback-b1:#20161f; --fallback-b2:#1c131b; --fallback-b3:#181017; --fallback-bc:#c59f60 }
+    /* Active nav item — explicit hex colors guaranteed contrast in every theme */
+    .menu li > a.active {
+      background-color: #2b3440 !important;
+      color: #d7dde4 !important;
+      font-weight: 600;
+    }
+    [data-theme=dark] .menu li > a.active,
+    [data-theme=night] .menu li > a.active,
+    [data-theme=dracula] .menu li > a.active,
+    [data-theme=business] .menu li > a.active,
+    [data-theme=coffee] .menu li > a.active {
+      background-color: #3d4554 !important;
+      color: #e2e8f0 !important;
+    }
   </style>
   <style>
     #doc-body h1 { font-size: 1.75rem; font-weight: 700; margin: 1.5rem 0 0.75rem; border-bottom: 1px solid oklch(var(--b3)); padding-bottom: 0.4rem; }
@@ -43,7 +57,7 @@
   <script>
     /* Apply saved theme before first paint to prevent FOUC */
     (function() {
-      var t = localStorage.getItem('gs-theme') || 'dark';
+      var t = localStorage.getItem('gs-theme') || 'light';
       document.documentElement.setAttribute('data-theme', t);
     })();
   </script>
@@ -64,25 +78,25 @@
       <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
       Swagger UI
     </a>
-    <div class="dropdown dropdown-end">
-      <button tabindex="0" class="btn btn-ghost btn-sm btn-square" title="Change theme">
+    <div style="position:relative">
+      <button class="btn btn-ghost btn-sm btn-square" title="Change theme" onclick="toggleThemeDropdown(event)">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"/>
         </svg>
       </button>
-      <ul tabindex="0" class="dropdown-content menu bg-base-200 rounded-box shadow-lg p-1 w-40 z-50 mt-1">
-        <li class="menu-title"><span class="text-xs opacity-50">Light</span></li>
-        <li><a data-theme-item="light" onclick="setTheme('light')">Light</a></li>
-        <li><a data-theme-item="corporate" onclick="setTheme('corporate')">Corporate</a></li>
-        <li><a data-theme-item="winter" onclick="setTheme('winter')">Winter</a></li>
-        <li><a data-theme-item="nord" onclick="setTheme('nord')">Nord</a></li>
-        <li class="menu-title"><span class="text-xs opacity-50">Dark</span></li>
-        <li><a data-theme-item="dark" onclick="setTheme('dark')">Dark</a></li>
-        <li><a data-theme-item="night" onclick="setTheme('night')">Night</a></li>
-        <li><a data-theme-item="dracula" onclick="setTheme('dracula')">Dracula</a></li>
-        <li><a data-theme-item="business" onclick="setTheme('business')">Business</a></li>
-        <li><a data-theme-item="coffee" onclick="setTheme('coffee')">Coffee</a></li>
-      </ul>
+      <div id="theme-menu" style="display:none;position:absolute;right:0;top:100%;margin-top:4px;z-index:9999;min-width:160px;background:oklch(var(--b2));border:1px solid oklch(var(--b3));border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.18);padding:4px 0">
+        <div style="padding:4px 12px 2px;font-size:0.7rem;opacity:0.5;text-transform:uppercase;letter-spacing:0.05em">Light</div>
+        <a data-theme-item="light" onclick="setTheme('light')" style="display:block;padding:6px 12px;cursor:pointer;font-size:0.875rem">Light</a>
+        <a data-theme-item="corporate" onclick="setTheme('corporate')" style="display:block;padding:6px 12px;cursor:pointer;font-size:0.875rem">Corporate</a>
+        <a data-theme-item="winter" onclick="setTheme('winter')" style="display:block;padding:6px 12px;cursor:pointer;font-size:0.875rem">Winter</a>
+        <a data-theme-item="nord" onclick="setTheme('nord')" style="display:block;padding:6px 12px;cursor:pointer;font-size:0.875rem">Nord</a>
+        <div style="padding:4px 12px 2px;margin-top:4px;font-size:0.7rem;opacity:0.5;text-transform:uppercase;letter-spacing:0.05em">Dark</div>
+        <a data-theme-item="dark" onclick="setTheme('dark')" style="display:block;padding:6px 12px;cursor:pointer;font-size:0.875rem">Dark</a>
+        <a data-theme-item="night" onclick="setTheme('night')" style="display:block;padding:6px 12px;cursor:pointer;font-size:0.875rem">Night</a>
+        <a data-theme-item="dracula" onclick="setTheme('dracula')" style="display:block;padding:6px 12px;cursor:pointer;font-size:0.875rem">Dracula</a>
+        <a data-theme-item="business" onclick="setTheme('business')" style="display:block;padding:6px 12px;cursor:pointer;font-size:0.875rem">Business</a>
+        <a data-theme-item="coffee" onclick="setTheme('coffee')" style="display:block;padding:6px 12px;cursor:pointer;font-size:0.875rem">Coffee</a>
+      </div>
     </div>
   </header>
 
@@ -118,19 +132,31 @@
   </div>
 
   <script>
-    // Mark active theme in the dropdown menu
+    // Mark active theme in the menu
     (function() {
       var t = localStorage.getItem('gs-theme') || 'dark';
       var el = document.querySelector('[data-theme-item="' + t + '"]');
-      if (el) el.classList.add('active');
+      if (el) el.style.fontWeight = '700';
     })();
+    function toggleThemeDropdown(e) {
+      e.stopPropagation();
+      var m = document.getElementById('theme-menu');
+      m.style.display = m.style.display === 'none' ? 'block' : 'none';
+    }
     function setTheme(t) {
       document.documentElement.setAttribute('data-theme', t);
       localStorage.setItem('gs-theme', t);
       document.querySelectorAll('[data-theme-item]').forEach(function(el) {
-        el.classList.toggle('active', el.dataset.themeItem === t);
+        el.style.fontWeight = el.dataset.themeItem === t ? '700' : '';
       });
+      var m = document.getElementById('theme-menu');
+      if (m) m.style.display = 'none';
     }
+    // Close menu when clicking outside
+    document.addEventListener('click', function() {
+      var m = document.getElementById('theme-menu');
+      if (m) m.style.display = 'none';
+    });
     // Render markdown
     var raw = {{ markdown_content | tojson }};
     document.getElementById('doc-body').innerHTML = marked.parse(raw);
