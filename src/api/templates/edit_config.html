@@ -265,6 +265,33 @@
         </div>
       </div>
     </div>
+    <div class="card bg-base-200 mb-6">
+      <div class="card-body">
+        <h2 class="card-title text-sm uppercase tracking-wider opacity-60 mb-2">Spec Files</h2>
+        <p class="text-xs opacity-50 mb-4">JSON files declared in the engine config (<code>spec_files:</code>) that are automatically injected into agent prompts as project-specific context.</p>
+        <div id="spec-files-result">
+          {% if spec_files_status %}
+            {% for sf in spec_files_status %}
+            <div class="flex items-center gap-3 py-1">
+              {% if sf.exists %}
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-success shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              {% else %}
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-warning shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+              {% endif %}
+              <span class="font-mono text-sm">{{ sf.path }}</span>
+              <span class="badge badge-xs {% if sf.exists %}badge-success{% else %}badge-warning{% endif %}">
+                {% if sf.exists %}found{% else %}missing{% endif %}
+              </span>
+            </div>
+            {% endfor %}
+          {% elif settings.project_path and detected_engine %}
+          <p class="opacity-40 text-sm">No spec files declared in the engine config.</p>
+          {% else %}
+          <p class="opacity-40 text-sm">Spec files are shown after a project path is saved and an engine is detected.</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -409,6 +436,7 @@ async function saveProject() {
     showToast('Project path saved', 'success');
     status.textContent = 'Saved';
     updateDetectionDisplay(data.detected_engine, projectPath);
+    updateSpecFilesDisplay(data.spec_files || [], projectPath, data.detected_engine);
   } else {
     var err = await res.json();
     showToast(err.detail || 'Save failed', 'error');
@@ -431,6 +459,28 @@ function updateDetectionDisplay(detected, projectPath) {
       + '</div>';
   } else {
     result.innerHTML = '<p class="opacity-40 text-sm">Set a project path above to auto-detect your game engine.</p>';
+  }
+}
+
+function updateSpecFilesDisplay(specFiles, projectPath, detected) {
+  var el = document.getElementById('spec-files-result');
+  if (!el) return;
+  var checkIcon = '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-success shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>';
+  var warnIcon = '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-warning shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>';
+  if (specFiles && specFiles.length > 0) {
+    var html = '';
+    specFiles.forEach(function(sf) {
+      html += '<div class="flex items-center gap-3 py-1">'
+        + (sf.exists ? checkIcon : warnIcon)
+        + '<span class="font-mono text-sm">' + sf.path + '</span>'
+        + '<span class="badge badge-xs ' + (sf.exists ? 'badge-success">found' : 'badge-warning">missing') + '</span>'
+        + '</div>';
+    });
+    el.innerHTML = html;
+  } else if (projectPath && detected) {
+    el.innerHTML = '<p class="opacity-40 text-sm">No spec files declared in the engine config.</p>';
+  } else {
+    el.innerHTML = '<p class="opacity-40 text-sm">Spec files are shown after a project path is saved and an engine is detected.</p>';
   }
 }
 </script>

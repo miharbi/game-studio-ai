@@ -162,6 +162,24 @@ def _detect_engine(project_path: str) -> dict | None:
     return None
 
 
+def _detect_spec_files(project_path: str, engine_id: str | None) -> list[dict]:
+    """Return [{path, exists}] for spec_files declared in the engine YAML config."""
+    if not project_path or not engine_id:
+        return []
+    engine_file = _ENGINES_DIR / f"{engine_id}.yaml"
+    if not engine_file.exists():
+        return []
+    try:
+        cfg = yaml.safe_load(engine_file.read_text()) or {}
+    except Exception:
+        return []
+    p = Path(project_path)
+    return [
+        {"path": sf, "exists": (p / sf).is_file()}
+        for sf in cfg.get("spec_files", [])
+    ]
+
+
 def _list_schema_types() -> list[str]:
     return list(SCHEMA_TYPES)
 
@@ -455,6 +473,9 @@ async def config_edit(request: Request) -> HTMLResponse:
     )
     settings = _load_settings()
     detected_engine = _detect_engine(settings["project_path"])
+    spec_files_status = _detect_spec_files(
+        settings["project_path"], detected_engine["id"] if detected_engine else None
+    )
     providers_with_status = _providers_with_status()
     active_models = _list_all_models(active_only=True)
     templates = request.app.state.templates
@@ -467,6 +488,7 @@ async def config_edit(request: Request) -> HTMLResponse:
             "is_new_config": is_new,
             "settings": settings,
             "detected_engine": detected_engine,
+            "spec_files_status": spec_files_status,
         },
     )
 
@@ -493,6 +515,10 @@ async def config_save(body: ConfigBody) -> dict:
             {"project_path": body.project_path.strip()}, default_flow_style=False
         ))
         result["detected_engine"] = _detect_engine(body.project_path.strip())
+        result["spec_files"] = _detect_spec_files(
+            body.project_path.strip(),
+            (result["detected_engine"] or {}).get("id"),
+        )
     return result
 
 

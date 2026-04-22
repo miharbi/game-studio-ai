@@ -94,6 +94,7 @@ Run `python runner.py list-models` to see all pre-configured providers and model
 - **Be specific about output format.** Agents that produce structured output (JSON, code, design specs) should include the exact format in their system prompt so the orchestrator can validate it.
 - **Include a constraint section.** List the rules the agent must never break (e.g., no hardcoded values, 60-character dialogue limit).
 - **Engine awareness.** The orchestrator injects engine context automatically, but agents can reference engine-specific patterns explicitly.
+- **Spec file context.** When a project path is configured and the engine declares `spec_files`, the orchestrator injects relevant sections of those JSON files into each agent's system prompt. Each agent only receives the sections relevant to its role (e.g. `art_director` gets `art_style` + `characters` + `vfx`; `writer` gets `characters` + `audio`). Add a `## Game Spec` section near the top of the agent's body to tell it how to use that injected context.
 - **Tier 1 agents own decisions.** Their prompts should include APPROVED/REJECTED patterns since they are used as gates.
 
 ---

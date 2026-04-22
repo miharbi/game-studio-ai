@@ -226,6 +226,47 @@ steps:
 
 Engine context is automatically injected into every agent prompt so agents give engine-appropriate advice.
 
+### Game Project Spec Files
+
+Engine configs can declare `spec_files` — JSON files inside the game project that serve as a living game bible. When a project path is set (via **Setup → Project**), those files are loaded and relevant sections are injected per-agent:
+
+```yaml
+# config/engines/godot4.yaml (excerpt)
+spec_files:
+  - "data/game_spec.json"     # full game bible (art, audio, characters, world rules)
+  - "data/level_template.json" # blank world skeleton agents must fill in
+```
+
+Each agent only receives the sections it needs (e.g. `art_director` gets `art_style` + `characters` + `vfx`; `writer` gets `characters` + `audio`). The injection is handled by `src/engines/loader.py` (project-aware loader) and `src/orchestrator/context.py` (per-agent section router).
+
+### Barrio Bravo World Validator
+
+The `barrio_bravo_world` schema type validates the JSON block produced by `level_designer` and `world_builder` for Godot 4 beat-em-up worlds. It enforces:
+
+- Required top-level keys, no invented keys
+- Wave trigger gap ≥ 400 px, valid speaker/trigger enums
+- At least 1 `street_food` prop per combat wave
+- At least 4 `scenario_ads`, ≥ 11 dialogues, no duplicate IDs
+- Boss block with non-empty name and dialogue IDs
+- Exactly 20 required `art_direction` keys, all non-empty
+
+Use in a plan step:
+
+```yaml
+- id: level_layout
+  agent: level_designer
+  validate_as: barrio_bravo_world
+```
+
+### World Merger & Skeleton Generator
+
+Two helper modules automate the post-approval workflow:
+
+| Module | Purpose |
+|---|---|
+| `src/mergers/godot4_world.py` | Merges an approved world JSON into `data/levels_fallback.json` — backs up first, chains `next_world`, assigns `scenario_ads[].x` evenly, writes atomically |
+| `src/generators/godot4_skeleton.py` | Reads the last world's stats (scroll length, boss HP, wave count) and produces a difficulty-scaled structural skeleton for the next world — the agent fills narrative, art direction, and dialogue |
+
 ---
 
 ## CLI Reference
@@ -312,9 +353,11 @@ game-studio-ai/
 ├── src/
 │   ├── models/             # LLM client (litellm) and model router
 │   ├── orchestrator/       # plan executor, agent loader, gate, context
-│   ├── validators/         # output schema validators
+│   ├── validators/         # output schema validators (includes barrio_bravo_world)
+│   ├── mergers/            # approved-output mergers (e.g. godot4 world JSON → levels file)
+│   ├── generators/         # deterministic skeleton generators (e.g. difficulty-scaled world)
 │   ├── state/              # SQLModel + SQLite persistence
-│   ├── engines/            # engine detection and context loading
+│   ├── engines/            # engine detection, context loading, and spec file loader
 │   ├── sprites/            # spec builder, generator, post-processor
 │   └── api/                # FastAPI + htmx web UI
 ├── tests/                  # pytest test suite

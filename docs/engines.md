@@ -5,6 +5,7 @@ Each engine has a YAML config in `config/engines/` that controls:
 - **Detection hints** — file patterns used by `detect()` to identify the engine
 - **Sprite dimensions** — pixel sizes per asset type
 - **Agent context** — a paragraph injected into every agent prompt when that engine is active
+- **Spec files** — optional list of JSON files inside the game project that serve as a living game bible, injected per-agent
 
 For installation and first-time project setup, start with [Project Quick Start](quick-start.md).
 
@@ -15,6 +16,8 @@ For installation and first-time project setup, start with [Project Quick Start](
 ### Setting the project path and auto-detection
 
 Navigate to **Setup** (`/edit/config`) → **Project** tab. Enter the absolute path to your game project root. The server scans the directory against all `detect_files` entries in `config/engines/*.yaml` and shows which engine it matched. The detected engine is injected into every agent prompt for that run.
+
+After detection, a **Spec Files** card shows each file declared in the engine's `spec_files:` list with a **found** or **missing** badge. Missing spec files are skipped at runtime without stopping the run.
 
 ### Editing engine configs
 
@@ -49,6 +52,15 @@ python runner.py run --plan plans/templates/design_feature.yaml --engine godot4
 ### Godot 4
 
 **Detection:** presence of `project.godot` in the project root
+
+**Spec files declared:**
+
+| Path | Purpose |
+| ---- | ------- |
+| `data/game_spec.json` | Full game bible — art style, characters, audio, VFX, world authoring rules |
+| `data/level_template.json` | Blank world skeleton that `level_designer` and `world_builder` must fill in |
+
+Relevant sections from `game_spec.json` are injected per-agent (e.g. `art_director` receives `art_style` + `characters` + `vfx`; `writer` receives `characters` + `audio`). Both files are injected for `level_designer` and `world_builder`.
 
 **Sprite dimensions:**
 
@@ -140,16 +152,21 @@ python runner.py run --plan plans/templates/design_feature.yaml --engine godot4
 1. Create `config/engines/myengine.yaml` with the structure:
 
     ```yaml
+    id: myengine
     name: My Engine
-    detection:
-      files: ["marker_file.ext"]
+    detect_files:
+      - "marker_file.ext"
     sprite_dimensions:
       player: {width: 64, height: 64}
       background: {width: 1920, height: 1080}
+    spec_files:                    # optional — omit if you have no game-bible JSON files
+      - "data/game_spec.json"
     agent_context: |
       This project uses My Engine. Follow these conventions: ...
     ```
 
-2. Add a detection case in `src/engines/detect.py` → `detect()` function.
+2. The engine is immediately available for detection (no code change needed).
 
-3. The new engine is immediately available with `--engine myengine`.
+3. To load `spec_files` at runtime, ensure a project path is saved in **Setup → Project**.
+
+> **Note:** The old `detection.files` key is **not** supported. Use `detect_files` (a top-level list).

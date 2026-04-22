@@ -75,6 +75,7 @@ python runner.py resume <run-id>
 | `sprite_spec` | JSON with `name`, `prompt`, `width`, `height` |
 | `code_block` | Output contains at least one fenced code block |
 | `feature_design` | Markdown with `## Concept`, `## Mechanics`, `## Risks` sections |
+| `barrio_bravo_world` | Full Barrio Bravo world JSON block — validates required keys, wave gaps, speaker/trigger enums, `street_food` prop count per combat wave, ≥ 4 `scenario_ads`, ≥ 11 dialogues, boss block, and all 20 `art_direction` keys |
 
 Validation errors are logged but do not stop the pipeline unless the gate is `conditional` and "REJECTED" appears in the output.
 

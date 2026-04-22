@@ -75,6 +75,8 @@ The app will auto-detect the engine when possible:
 
 If you are just exploring the tool, you can skip this step and select an engine manually when you run a plan.
 
+If the detected engine declares `spec_files`, those JSON files from your project are shown with a **found** or **missing** badge. When found, their relevant sections are automatically injected into each agent prompt during runs — no extra configuration needed.
+
 ---
 
 ## 5. Run Your First Plan

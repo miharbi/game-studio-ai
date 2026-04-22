@@ -43,6 +43,12 @@
       <span class="badge badge-ghost badge-sm">{{ key }}: {{ val }}</span>
       {% endfor %}
       {% endif %}
+      {% if engine.get('spec_files') %}
+      <span class="text-xs font-bold uppercase tracking-wider opacity-60 ml-4">Spec files:</span>
+      {% for sf in engine.get('spec_files', []) %}
+      <span class="badge badge-outline badge-sm font-mono">{{ sf }}</span>
+      {% endfor %}
+      {% endif %}
     </div>
   </div>
 </div>

@@ -304,11 +304,17 @@ Validates the YAML before writing. Optionally updates the project path in `confi
 {
   "status": "saved",
   "file": "models.yaml",
-  "detected_engine": { "name": "Unity", "matched": "Assets/" }
+  "detected_engine": { "id": "godot4", "name": "Godot 4", "matched": "project.godot" },
+  "spec_files": [
+    { "path": "data/game_spec.json", "exists": true },
+    { "path": "data/level_template.json", "exists": true }
+  ]
 }
 ```
 
-`detected_engine` is `null` when no engine is detected or `project_path` was not provided.
+`detected_engine` is `null` when no engine is detected or `project_path` was not provided.  
+`spec_files` is an empty array when no engine is detected or the engine declares no spec files.  
+Each entry in `spec_files` has `path` (relative to project root) and `exists` (boolean).
 
 ---
 
