@@ -315,6 +315,20 @@
 {% endblock %}
 {% block scripts %}
 <script>
+  PAGE_HELP = {
+    title: 'Setup',
+    description: 'Configure LLM provider API keys, assign models to agent tiers, and set sprite generation options.',
+    tips: [
+      'Tiers tab: assign one LLM model per tier. Tier 1 = best quality (directors), Tier 3 = fastest/cheapest (specialists).',
+      'API Keys tab: paste provider keys here \u2014 stored in config/.env which is git-ignored.',
+      'A provider is Active only when its API key environment variable is set and non-empty.',
+      'Sprites tab: use stub for testing without real API calls; openai uses DALL-E 3.',
+      'Project tab: set your game project path for engine auto-detection and spec file injection.'
+    ],
+    doc_url: '/guide/quick-start'
+  };
+</script>
+<script>
 var activeTab = 'tab-tiers';
 
 function switchTab(evt, tabId) {

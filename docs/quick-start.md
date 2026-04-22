@@ -79,26 +79,80 @@ If the detected engine declares `spec_files`, those JSON files from your project
 
 ---
 
-## 5. Run Your First Plan
+## 5. The Dashboard
 
-Go back to the **Dashboard**.
+The Dashboard is the main launching pad for running plans and reviewing recent activity. Open it at `http://localhost:8000`.
 
-1. Choose a plan template
-2. Choose an engine or leave it on auto-detect
-3. Enter your request in the input box
-4. Click **Run**
+### The Run Form
 
-Good first prompts:
+| Field | What it does |
+| ----- | ------------ |
+| **Plan template** | Selects a YAML file from `plans/templates/`. Each template defines a specific pipeline — use `design_feature` for feature concepts, `write_dialogue` for NPC text, `generate_sprites` for AI images, etc. |
+| **Engine** | Overrides the engine for this run only. Leave on *auto-detect* to let the app infer the engine from your project directory (set in Setup → Project). |
+| **Input** | Free-text prompt passed directly to the first agent step. Be specific — the more context you give, the better the output. |
+
+Click **Run**. The page redirects to the **Run Detail** view where agent output streams in real time.
+
+### Status Alerts on the Dashboard
+
+| Alert | Meaning |
+| ----- | ------- |
+| **Setup required** | No model has been assigned to a tier yet — go to Setup → Tiers. |
+| **No API key** | A provider is selected but its API key variable is missing — go to Setup → API Keys. |
+| **Engine auto-detect unavailable** | No project path is set — go to Setup → Project, or pick an engine manually. |
+
+### Recent Runs
+
+Below the run form the last several pipeline runs are listed with their status:
+
+- **running** — currently executing (click to watch live output)
+- **paused** — waiting at a `human_review` gate — click to approve or reject
+- **complete** — all steps finished successfully
+- **failed** — a step errored; click to see which step and why
+
+Click any run row to open its detail page and read the full agent output.
+
+### Running Your First Plan
+
+Good first inputs to try:
 
 - `Add a wall-jump mechanic for the player character`
 - `Design a short tutorial level for a 2D action platformer`
 - `Write NPC dialogue for a blacksmith in a ruined village`
 
-The run detail page streams live agent output. If a step uses a `human_review` gate, the pipeline pauses until you approve or reject that checkpoint.
+---
+
+## 6. The Sprite Gallery
+
+The Sprite Gallery (`/sprites`) shows AI-generated images waiting for your review.
+
+### How Sprites Are Generated
+
+1. From the Dashboard, run a plan that uses the `generate_sprites` template.
+2. The agent pipeline writes a **sprite spec** — a JSON object with `name`, `prompt`, `width`, `height`, and optionally `style` for each sprite.
+3. The app calls your configured image provider and saves the resulting images to `output/sprites/`.
+4. The images appear in the gallery, grouped under **Pending Review**.
+
+### Sprite Providers
+
+Configure the provider in **Setup → Sprites**.
+
+| Provider | Description |
+| -------- | ----------- |
+| `stub` | Returns a small placeholder PNG immediately — no API calls, ideal for testing the pipeline without spending credits. |
+| `openai` | Calls DALL-E 3 via the OpenAI API. Requires `OPENAI_API_KEY` in Setup → API Keys. |
+| `stable_diffusion` | Posts to a Stable Diffusion WebUI REST API (local or remote). Set the endpoint URL in the Sprites config panel. |
+
+### Approving and Rejecting
+
+- **Approve** moves the image from `output/sprites/` to `output/approved/` — it is ready to import directly into your engine project.
+- **Reject** deletes the image file permanently.
+
+The gallery preview uses CSS `image-rendering: pixelated` so pixel-art sprites do not appear blurry at display scale.
 
 ---
 
-## 6. Review the Output
+## 7. Review the Output
 
 From the UI, you can immediately continue into the main workflows:
 
@@ -109,7 +163,7 @@ From the UI, you can immediately continue into the main workflows:
 
 ---
 
-## CLI Alternative
+## 8. CLI Alternative
 
 If you prefer to work from the terminal after configuration, these are the main commands:
 
@@ -131,7 +185,7 @@ python runner.py detect-engine /path/to/project
 
 ---
 
-## Where to Go Next
+## 9. Where to Go Next
 
 - [agents.md](agents.md) for agent authoring details
 - [plans.md](plans.md) for plan schema and run behavior

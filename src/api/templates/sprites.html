@@ -80,3 +80,19 @@
 </div>
 {% endif %}
 {% endblock %}
+{% block scripts %}
+<script>
+  PAGE_HELP = {
+    title: 'Sprite Gallery',
+    description: 'Review AI-generated sprite images. Approve to move them to output/approved/, or Reject to delete them permanently.',
+    tips: [
+      'Sprites are generated when you run a generate_sprites plan from the Dashboard.',
+      'Change the sprite provider in Setup \u2192 Sprites. Use stub for placeholder testing without API calls.',
+      'openai uses DALL-E; stable_diffusion connects to a local or remote SD WebUI.',
+      'Approved sprites land in output/approved/ \u2014 ready to import directly into your engine.',
+      'Image rendering is set to pixelated so pixel art does not appear blurry in the preview.'
+    ],
+    doc_url: '/guide/quick-start'
+  };
+</script>
+{% endblock %}

@@ -82,6 +82,20 @@
 </div>
 {% endblock %}
 {% block scripts %}
+<script>
+  PAGE_HELP = {
+    title: 'Edit Engine Config',
+    description: 'Edit the YAML configuration for this game engine, including detection rules, scripting conventions, and sprite output settings.',
+    tips: [
+      'detect_files: list files whose presence identifies this engine (e.g. project.godot for Godot 4).',
+      'spec_files: optional JSON spec files whose content is injected into agent prompts during runs.',
+      'sprite_output.format sets the default image format for sprite generation (png, jpeg, webp).',
+      'script_language and conventions are shown to agents to guide code generation style.',
+      'Use Ctrl/Cmd+S to save.'
+    ],
+    doc_url: '/guide/engines'
+  };
+</script>
 <script type="module">
 try {
   const {initEditor} = await import('/static/editor-init.js');

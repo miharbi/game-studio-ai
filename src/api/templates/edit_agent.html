@@ -93,6 +93,20 @@
 </div>
 {% endblock %}
 {% block scripts %}
+<script>
+  PAGE_HELP = {
+    title: 'Edit Agent',
+    description: 'Edit this agent\'s metadata (tier, domain, reporting chain) and the Markdown system prompt sent to the LLM when the agent runs.',
+    tips: [
+      'Leave Model Override blank to use the tier default configured in Setup.',
+      'Reports To sets the parent in the agent hierarchy (informational, not enforced in execution).',
+      'The Markdown body becomes the LLM system prompt \u2014 be explicit about role, responsibilities, and output format.',
+      'Use Ctrl/Cmd+S to save quickly.',
+      'Tier determines which model is used: Tier 1 = highest quality, Tier 3 = fastest/cheapest.'
+    ],
+    doc_url: '/guide/agents'
+  };
+</script>
 <script type="module">
 try {
   const {initEditor} = await import('/static/editor-init.js');

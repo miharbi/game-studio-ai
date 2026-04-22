@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -34,6 +34,13 @@
       gap: 0.5rem;
     }
   </style>
+  <script>
+    /* Apply saved theme before first paint to prevent FOUC */
+    (function() {
+      var t = localStorage.getItem('gs-theme') || 'dark';
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+  </script>
   {% block head_extra %}{% endblock %}
 </head>
 <body class="min-h-screen bg-base-100">
@@ -51,14 +58,30 @@
         <div class="flex-1 px-2">
           <span class="text-lg font-bold">{% block page_title %}{% endblock %}</span>
         </div>
-        <div class="flex-none">
-          <select id="theme-select" class="select select-sm select-bordered" onchange="setTheme(this.value)">
-            <option value="dark">Dark</option>
-            <option value="night">Night</option>
-            <option value="dracula">Dracula</option>
-            <option value="business">Business</option>
-            <option value="coffee">Coffee</option>
-          </select>
+        <div class="flex-none gap-2 flex items-center">
+          <button id="help-btn" class="btn btn-sm btn-ghost btn-circle opacity-60 hover:opacity-100" style="display:none" onclick="document.getElementById('help-modal').showModal()" title="Help for this page">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          </button>
+          <div class="dropdown dropdown-end">
+            <button tabindex="0" class="btn btn-ghost btn-sm btn-square" title="Change theme">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"/>
+              </svg>
+            </button>
+            <ul tabindex="0" class="dropdown-content menu bg-base-200 rounded-box shadow-lg p-1 w-40 z-50 mt-1">
+              <li class="menu-title"><span class="text-xs opacity-50">Light</span></li>
+              <li><a data-theme-item="light" onclick="setTheme('light')">Light</a></li>
+              <li><a data-theme-item="corporate" onclick="setTheme('corporate')">Corporate</a></li>
+              <li><a data-theme-item="winter" onclick="setTheme('winter')">Winter</a></li>
+              <li><a data-theme-item="nord" onclick="setTheme('nord')">Nord</a></li>
+              <li class="menu-title"><span class="text-xs opacity-50">Dark</span></li>
+              <li><a data-theme-item="dark" onclick="setTheme('dark')">Dark</a></li>
+              <li><a data-theme-item="night" onclick="setTheme('night')">Night</a></li>
+              <li><a data-theme-item="dracula" onclick="setTheme('dracula')">Dracula</a></li>
+              <li><a data-theme-item="business" onclick="setTheme('business')">Business</a></li>
+              <li><a data-theme-item="coffee" onclick="setTheme('coffee')">Coffee</a></li>
+            </ul>
+          </div>
         </div>
       </div>
       <!-- Page content -->
@@ -104,6 +127,30 @@
       </aside>
     </div>
   </div>
+  <!-- Help modal -->
+  <dialog id="help-modal" class="modal">
+    <div class="modal-box max-w-lg">
+      <div class="flex items-start justify-between mb-3">
+        <h3 class="text-lg font-bold flex items-center gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          <span id="help-modal-title">Help</span>
+        </h3>
+        <form method="dialog"><button class="btn btn-ghost btn-xs btn-circle">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button></form>
+      </div>
+      <p id="help-modal-desc" class="text-sm opacity-80 mb-4"></p>
+      <ul id="help-modal-tips" class="text-sm space-y-1.5 mb-5 list-none"></ul>
+      <div class="modal-action mt-2 flex-wrap gap-2 justify-between items-center">
+        <a id="help-modal-link" href="#" target="_blank" rel="noopener" class="link link-primary text-sm flex items-center gap-1">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+          Open full documentation
+        </a>
+        <form method="dialog"><button class="btn btn-sm">Close</button></form>
+      </div>
+    </div>
+    <form method="dialog" class="modal-backdrop"><button>close</button></form>
+  </dialog>
   <!-- Toast container -->
   <div class="toast toast-end toast-bottom z-50" id="toast-container"></div>
   <!-- Confirm modal -->
@@ -119,16 +166,18 @@
     <form method="dialog" class="modal-backdrop"><button>close</button></form>
   </dialog>
   <script>
-    // Theme persistence
+    // Mark active theme in the dropdown menu
     (function() {
-      var saved = localStorage.getItem('gs-theme') || 'dark';
-      document.documentElement.setAttribute('data-theme', saved);
-      var sel = document.getElementById('theme-select');
-      if (sel) sel.value = saved;
+      var t = localStorage.getItem('gs-theme') || 'dark';
+      var el = document.querySelector('[data-theme-item="' + t + '"]');
+      if (el) el.classList.add('active');
     })();
     function setTheme(t) {
       document.documentElement.setAttribute('data-theme', t);
       localStorage.setItem('gs-theme', t);
+      document.querySelectorAll('[data-theme-item]').forEach(function(el) {
+        el.classList.toggle('active', el.dataset.themeItem === t);
+      });
     }
     // Toast notifications
     function showToast(msg, type) {
@@ -149,6 +198,39 @@
       b.onclick = function() { document.getElementById('confirm-modal').close(); fn(); };
       document.getElementById('confirm-modal').showModal();
     }
+    // ── Contextual help system ──────────────────────────────────────────────
+    // PAGE_HELP is set by each child template in the 'scripts' block.
+    // Structure: { title, description, tips[], doc_url }
+    var PAGE_HELP = null;
+    document.addEventListener('DOMContentLoaded', function() {
+      if (!PAGE_HELP) return;
+      // Show the ? button
+      var helpBtn = document.getElementById('help-btn');
+      if (helpBtn) helpBtn.style.display = '';
+      // Inject AI context into <head> as inert JSON (no execution)
+      var ctx = document.createElement('script');
+      ctx.type = 'application/json';
+      ctx.id = 'page-ai-context';
+      ctx.textContent = JSON.stringify(PAGE_HELP);
+      document.head.appendChild(ctx);
+      // Populate modal
+      var titleEl = document.getElementById('help-modal-title');
+      var descEl  = document.getElementById('help-modal-desc');
+      var tipsEl  = document.getElementById('help-modal-tips');
+      var linkEl  = document.getElementById('help-modal-link');
+      if (titleEl) titleEl.textContent = PAGE_HELP.title || '';
+      if (descEl)  descEl.textContent  = PAGE_HELP.description || '';
+      if (tipsEl) {
+        tipsEl.innerHTML = '';
+        (PAGE_HELP.tips || []).forEach(function(tip) {
+          var li = document.createElement('li');
+          li.className = 'flex items-start gap-2 text-sm';
+          li.innerHTML = '<span class="text-primary mt-0.5 shrink-0">&#x2023;</span><span class="opacity-80">' + tip + '</span>';
+          tipsEl.appendChild(li);
+        });
+      }
+      if (linkEl) linkEl.href = PAGE_HELP.doc_url || '#';
+    });
   </script>
   {% block scripts %}{% endblock %}
 </body>

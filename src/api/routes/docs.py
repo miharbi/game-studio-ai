@@ -11,6 +11,7 @@ router = APIRouter(prefix="/guide", tags=["Docs"])
 _DOCS_DIR: Path = Path(__file__).resolve().parents[3] / "docs"
 
 _DOC_META: dict[str, str] = {
+    "quick-start": "Quick Start Guide",
     "agents": "Agent Authoring Guide",
     "plans": "Plan Schema Reference",
     "engines": "Engine Support Reference",
@@ -27,6 +28,10 @@ async def docs_index(request: Request) -> HTMLResponse:
 
 @router.get("/{name}", response_class=HTMLResponse, include_in_schema=False)
 async def docs_page(name: str, request: Request) -> HTMLResponse:
+    # Strip .md suffix from links that come from rendered markdown
+    if name.endswith(".md"):
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url=f"/guide/{name[:-3]}", status_code=301)
     if name not in _DOC_META:
         raise HTTPException(404, f"Doc page '{name}' not found.")
     path = _DOCS_DIR / f"{name}.md"

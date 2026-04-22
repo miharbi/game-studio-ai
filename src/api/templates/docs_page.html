@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -40,6 +40,13 @@
     #doc-body blockquote { border-left: 3px solid oklch(var(--p)); padding-left: 1rem; opacity: 0.8; margin: 0.75rem 0; }
     #doc-body hr { border-color: oklch(var(--b3)); margin: 1.5rem 0; }
   </style>
+  <script>
+    /* Apply saved theme before first paint to prevent FOUC */
+    (function() {
+      var t = localStorage.getItem('gs-theme') || 'dark';
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+  </script>
 </head>
 <body class="min-h-screen bg-base-100 text-base-content">
 
@@ -57,13 +64,26 @@
       <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
       Swagger UI
     </a>
-    <select id="theme-select" class="select select-sm select-bordered" onchange="setTheme(this.value)">
-      <option value="dark">Dark</option>
-      <option value="light">Light</option>
-      <option value="night">Night</option>
-      <option value="corporate">Corporate</option>
-      <option value="dracula">Dracula</option>
-    </select>
+    <div class="dropdown dropdown-end">
+      <button tabindex="0" class="btn btn-ghost btn-sm btn-square" title="Change theme">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"/>
+        </svg>
+      </button>
+      <ul tabindex="0" class="dropdown-content menu bg-base-200 rounded-box shadow-lg p-1 w-40 z-50 mt-1">
+        <li class="menu-title"><span class="text-xs opacity-50">Light</span></li>
+        <li><a data-theme-item="light" onclick="setTheme('light')">Light</a></li>
+        <li><a data-theme-item="corporate" onclick="setTheme('corporate')">Corporate</a></li>
+        <li><a data-theme-item="winter" onclick="setTheme('winter')">Winter</a></li>
+        <li><a data-theme-item="nord" onclick="setTheme('nord')">Nord</a></li>
+        <li class="menu-title"><span class="text-xs opacity-50">Dark</span></li>
+        <li><a data-theme-item="dark" onclick="setTheme('dark')">Dark</a></li>
+        <li><a data-theme-item="night" onclick="setTheme('night')">Night</a></li>
+        <li><a data-theme-item="dracula" onclick="setTheme('dracula')">Dracula</a></li>
+        <li><a data-theme-item="business" onclick="setTheme('business')">Business</a></li>
+        <li><a data-theme-item="coffee" onclick="setTheme('coffee')">Coffee</a></li>
+      </ul>
+    </div>
   </header>
 
   <div class="flex min-h-[calc(100vh-4rem)]">
@@ -98,16 +118,18 @@
   </div>
 
   <script>
-    // Theme persistence
+    // Mark active theme in the dropdown menu
     (function() {
-      var saved = localStorage.getItem('gs-theme') || 'dark';
-      document.documentElement.setAttribute('data-theme', saved);
-      var sel = document.getElementById('theme-select');
-      if (sel) sel.value = saved;
+      var t = localStorage.getItem('gs-theme') || 'dark';
+      var el = document.querySelector('[data-theme-item="' + t + '"]');
+      if (el) el.classList.add('active');
     })();
     function setTheme(t) {
       document.documentElement.setAttribute('data-theme', t);
       localStorage.setItem('gs-theme', t);
+      document.querySelectorAll('[data-theme-item]').forEach(function(el) {
+        el.classList.toggle('active', el.dataset.themeItem === t);
+      });
     }
     // Render markdown
     var raw = {{ markdown_content | tojson }};

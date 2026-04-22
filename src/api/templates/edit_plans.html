@@ -33,6 +33,20 @@
 {% endblock %}
 {% block scripts %}
 <script>
+  PAGE_HELP = {
+    title: 'Plan Templates',
+    description: 'Plans are YAML templates that define a sequence of AI agent steps. Click any plan to edit it, or create a new one below.',
+    tips: [
+      'Plan names must be snake_case (lowercase letters, digits, underscores only).',
+      'Each plan has a series of steps — each step assigns one agent and one action.',
+      'You can run any plan from the Dashboard by selecting it in the "Plan template" dropdown.',
+      'Plan files are stored in plans/templates/ as YAML — you can also edit them directly.',
+      'Use the generate_sprites template to produce sprite assets via AI image generation.'
+    ],
+    doc_url: '/guide/plans'
+  };
+</script>
+<script>
 async function createPlan() {
   var name = document.getElementById('new-plan-name').value.trim();
   if (!name) { showToast('Enter a task name', 'warning'); return; }

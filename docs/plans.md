@@ -8,19 +8,79 @@ For installation, setup, and your first run, start with [Project Quick Start](qu
 
 ## Using the Web UI
 
-### Running plans
+### Running a plan from the Dashboard
 
-Open the **Dashboard** (`/`). Select a plan template from the dropdown, pick an engine, enter your input text, and click **Run**. The run detail page streams live agent output via Server-Sent Events. When a `human_review` gate is reached, an approval panel appears — approve to continue or reject with feedback.
+Open the **Dashboard** (`/`).
 
-> The **Run** button is disabled when no model configuration is set — navigate to **Setup** to configure providers and API keys first.
+1. Select a plan template from the dropdown — each entry corresponds to a YAML file in `plans/templates/`.
+2. Choose an engine, or leave it on *auto-detect* to let the app read your project directory.
+3. Type your input text — this is injected verbatim into the first step's agent prompt.
+4. Click **Run**.
+
+You are redirected to the **Run Detail** page, which streams live agent output via Server-Sent Events. Each completed step is marked in the **Pipeline** sidebar on the left.
+
+> The **Run** button is disabled when no model configuration is set. Navigate to **Setup** to configure providers and API keys first.
+
+### Gates and the human review flow
+
+Every step has a **gate** that controls whether the pipeline pauses after that step:
+
+| Gate | Runtime behaviour |
+| ---- | ----------------- |
+| `auto` | The next step starts immediately after the current one finishes. |
+| `conditional` | Continues automatically unless the agent output contains the word `REJECTED` (case-insensitive). Use this for self-checking steps. |
+| `human_review` | The pipeline **pauses**. An approval panel appears on the Run Detail page. Review the agent's output, then either **Approve** to continue or **Reject** and type feedback — the feedback is prepended to the next agent's prompt. |
+
+### Parallel execution with depends_on
+
+By default steps run sequentially. When two or more steps share the same `depends_on` list, they run **in parallel** — each in its own async task, pulling output from the same parent step(s). The pipeline waits for all parallel branches to complete before continuing to any downstream step.
+
+Example — `write_lore` and `write_mechanics` both depend on `concept`, so they run at the same time:
+
+```yaml
+steps:
+  - id: concept
+    agent: creative_director
+    tier: 1
+    action: "Draft a one-paragraph concept."
+    gate: auto
+
+  - id: write_lore
+    agent: writer
+    tier: 3
+    action: "Expand the concept into lore."
+    gate: auto
+    depends_on: [concept]
+
+  - id: write_mechanics
+    agent: game_designer
+    tier: 2
+    action: "Expand the concept into mechanics."
+    gate: auto
+    depends_on: [concept]
+
+  - id: review
+    agent: producer
+    tier: 1
+    action: "Consolidate lore and mechanics into a feature brief."
+    gate: human_review
+    depends_on: [write_lore, write_mechanics]
+```
 
 ### Editing plan templates
 
 Navigate to **Plans** in the sidebar. The page lists all templates from `plans/templates/`.
 
-- **Edit** — click any plan name to open it in the CodeMirror YAML editor. The step list, gate types, and dependencies are all editable. Changes save immediately via `PUT /edit/plans/{filename}`.
-- **Create** — click **New Plan**, fill in the fields, add steps, and save. The file is created under `plans/templates/` automatically.
-- **Delete** — use the delete button on the plan detail page.
+Click any plan to open the **Edit Plan** page, which has two views:
+
+**List view** — a form-based editor. Each step is a card with fields for ID, Agent, Action, Gate, Depends On, and Validate As. Drag the handle on the left to reorder steps. Click **Add Step** to append a new one.
+
+**Flow view** — a visual node graph powered by Drawflow. Each step is a node showing the agent name, gate badge, and a Validate As badge. Draw edges by dragging from the output port (right dot) of one node to the input port (left dot) of another — this sets the `depends_on` relationship. Click the ✏ icon on a node to open the side panel and edit its fields.
+
+Changes are saved via **Save** (or Ctrl/Cmd+S) — they write the YAML file to `plans/templates/` immediately.
+
+- **Create** — click **New Plan** on the Plans list page, fill in the fields, add steps, and save.
+- **Delete** — use the **Delete** button on the Edit Plan page.
 
 > If CodeMirror fails to load (e.g. no internet for the ESM CDN), the editor falls back to a plain textarea.
 

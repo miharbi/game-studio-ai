@@ -55,6 +55,20 @@
 {% endblock %}
 {% block scripts %}
 <script>
+  PAGE_HELP = {
+    title: 'Agents',
+    description: 'Agents are AI personas organized in 3 tiers. Each agent has a system prompt that defines its role, and runs as part of a plan step.',
+    tips: [
+      'Tier 1 (Directors) use the highest-quality model — best for strategic decisions and creative direction.',
+      'Tier 2 (Leads) coordinate and refine Tier 1 output.',
+      'Tier 3 (Specialists) handle focused execution tasks and can use a faster, cheaper model.',
+      'Agent names must be snake_case (e.g. level_designer, qa_tester).',
+      'You can override the model per-agent on the Edit Agent page — useful for special roles.'
+    ],
+    doc_url: '/guide/agents'
+  };
+</script>
+<script>
 async function createAgent() {
   var tier = document.getElementById('new-tier').value;
   var name = document.getElementById('new-agent-name').value.trim();

@@ -33,6 +33,20 @@
 {% endblock %}
 {% block scripts %}
 <script>
+  PAGE_HELP = {
+    title: 'Engine Configurations',
+    description: 'Engine configs define file patterns, scripting conventions, and output paths for each supported game engine.',
+    tips: [
+      'The detect_files list is used to auto-detect the engine from your project directory.',
+      'Conventions defined here are injected into agent prompts so agents follow the right idioms.',
+      'Engine IDs must be snake_case (e.g. godot4, unreal5).',
+      'If spec_files are declared, found JSON files from your project are injected into every agent prompt.',
+      'Set your project path in Setup → Project to enable engine auto-detection.'
+    ],
+    doc_url: '/guide/engines'
+  };
+</script>
+<script>
 async function createEngine() {
   var name = document.getElementById('new-engine-name').value.trim();
   if (!name) { showToast('Enter an engine ID', 'warning'); return; }

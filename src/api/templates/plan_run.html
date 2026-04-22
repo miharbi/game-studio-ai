@@ -70,6 +70,20 @@
 {% endblock %}
 {% block scripts %}
 <script>
+  PAGE_HELP = {
+    title: 'Run Detail',
+    description: 'Live view of a running agent pipeline. Streams agent output in real time and shows each step\'s status.',
+    tips: [
+      'If a step uses a human_review gate, the pipeline pauses here \u2014 review the output and Approve or Reject.',
+      'Rejection sends your written feedback back to the agent so it can revise its output.',
+      'The Pipeline sidebar shows which steps have completed and which are pending.',
+      'Use Cancel Run to stop the pipeline cleanly after the current step finishes.',
+      'Completed run output is stored in the database and can be reviewed after the run ends.'
+    ],
+    doc_url: '/guide/quick-start'
+  };
+</script>
+<script>
   const streamBox = document.getElementById('stream-box');
   const gatePanel = document.getElementById('gate-panel');
   const cancelBtn = document.getElementById('cancel-btn');

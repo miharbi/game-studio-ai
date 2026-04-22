@@ -106,8 +106,24 @@
           + '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>'
           + '<span>' + msg + ' <a href="/edit/config" class="link font-semibold">Go to Setup → API Keys</a></span>'
           + '</div>';
-      }
+      };
     }
   });
+</script>
+{% endblock %}
+{% block scripts %}
+<script>
+  PAGE_HELP = {
+    title: 'Dashboard',
+    description: 'The Dashboard is where you launch agent pipeline runs and review recent activity.',
+    tips: [
+      'Select a plan template that matches your goal (e.g. design_feature, write_dialogue).',
+      'Leave Engine on auto-detect to let the app read your project files.',
+      'The Input box is passed to the first agent \u2014 be specific about what you want.',
+      'If a run pauses, it is waiting at a human_review gate \u2014 visit the run detail page to approve or reject.',
+      '"Setup required" or "No API key" alerts mean you need to configure a provider in Setup \u2192 API Keys.'
+    ],
+    doc_url: '/guide/quick-start'
+  };
 </script>
 {% endblock %}

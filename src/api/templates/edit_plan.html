@@ -357,6 +357,21 @@
 
 {% block scripts %}
 <script>
+  PAGE_HELP = {
+    title: 'Edit Plan',
+    description: 'Edit a plan\'s metadata and pipeline steps. Use List view for a form-based editor, or Flow view for a visual node graph.',
+    tips: [
+      'Task is the plan\'s snake_case identifier and also becomes the YAML filename.',
+      'Engine can be overridden per-run from the Dashboard; leave blank to auto-detect.',
+      'In Flow view, drag the output port (right dot) of one node to another\'s input port (left dot) to set Depends On.',
+      'Gate: auto continues automatically; human_review pauses and waits for your approval on the Run Detail page.',
+      'Validate As runs a JSON schema check on the agent\'s output before the next step runs.',
+      'Steps with the same Depends On value run in parallel.'
+    ],
+    doc_url: '/guide/plans'
+  };
+</script>
+<script>
 // ── Server-injected data ──────────────────────────────────────────────────────
 var AGENTS_LIST  = {{ agents_list | tojson }};
 var GATE_OPTIONS = {{ gate_options | tojson }};
