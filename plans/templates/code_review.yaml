@@ -19,7 +19,6 @@ steps:
       strings, input by action name, audio via AudioManager.
       Produce a prioritized findings list (BLOCKER | MAJOR | MINOR).
     gate: auto
-    validate_as: code_block
 
   - id: engine_integration_review
     agent: engine_programmer

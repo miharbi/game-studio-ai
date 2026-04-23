@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}{{ filename }} — Game Studio AI{% endblock %}
-{% block page_title %}Edit Engine: {{ filename }}{% endblock %}
+{% block page_title %}Edit Engine: {{ filename | replace('.yaml','') | replace('_',' ') | title }}{% endblock %}
 {% block content %}
 <!-- Breadcrumb -->
 <div class="breadcrumbs text-sm mb-4">

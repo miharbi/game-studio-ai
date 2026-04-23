@@ -200,7 +200,6 @@ def compute_skeleton(
     ``dialogues_pool``, ``scenario_ads``, ``art_direction``, and wave intro lines.
 
     The ``_meta_boss_hp`` key **must** be stripped before calling
-    :func:`src.validators.godot4_world.validate_world` or
     :func:`src.mergers.godot4_world.merge_world`.  Use its value to update
     ``enemies[boss_type].health`` in ``levels_fallback.json``.
 

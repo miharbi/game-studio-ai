@@ -27,6 +27,7 @@
   <a role="tab" class="tab" onclick="switchTab(event, 'tab-providers')">Providers</a>
   <a role="tab" class="tab" onclick="switchTab(event, 'tab-keys')">API Keys</a>
   <a role="tab" class="tab" onclick="switchTab(event, 'tab-project')">Project</a>
+  <a role="tab" class="tab" onclick="switchTab(event, 'tab-validators')">Validators</a>
 </div>
 
 <!-- Tab: Tiers -->
@@ -139,18 +140,34 @@
           <p class="text-xs opacity-50 mb-2">Add an API key in the API Keys tab to activate this provider.</p>
           {% endif %}
           <div class="overflow-x-auto">
-            <table class="table table-xs">
-              <thead><tr><th>Model ID</th><th>Context</th><th>Note</th></tr></thead>
+            <table class="table table-xs" id="provider-models-{{ p.name }}">
+              <thead><tr><th>Model ID</th><th>Context</th><th>Note</th><th></th></tr></thead>
               <tbody>
                 {% for m in p.models %}
-                <tr>
+                <tr data-provider="{{ p.name }}">
                   <td class="font-mono text-xs">{{ m.id }}</td>
                   <td>{{ '{:,}'.format(m.get('context_window', 0)) }}</td>
                   <td class="text-xs opacity-60">{{ m.get('note', '') }}</td>
+                  <td><button class="btn btn-xs btn-ghost text-error" onclick="removeProviderModel(this, '{{ p.name }}', '{{ m.id }}')">✕</button></td>
                 </tr>
                 {% endfor %}
               </tbody>
             </table>
+          </div>
+          <div class="flex flex-wrap gap-2 mt-3 items-end">
+            <div class="form-control">
+              <label class="label py-0"><span class="label-text text-xs">Model ID</span></label>
+              <input type="text" class="input input-bordered input-xs font-mono w-56" id="new-model-id-{{ p.name }}" placeholder="provider/model-name">
+            </div>
+            <div class="form-control">
+              <label class="label py-0"><span class="label-text text-xs">Context window</span></label>
+              <input type="number" class="input input-bordered input-xs w-32" id="new-model-ctx-{{ p.name }}" placeholder="128000" min="0">
+            </div>
+            <div class="form-control">
+              <label class="label py-0"><span class="label-text text-xs">Note</span></label>
+              <input type="text" class="input input-bordered input-xs w-48" id="new-model-note-{{ p.name }}" placeholder="Optional description">
+            </div>
+            <button class="btn btn-xs btn-success mt-4" onclick="addProviderModel('{{ p.name }}')">+ Add Model</button>
           </div>
         </div>
       </div>
@@ -295,6 +312,98 @@
   </div>
 </div>
 
+<!-- Tab: Validators -->
+<div id="tab-validators" class="cfg-panel hidden">
+  <div class="max-w-3xl">
+    <div class="card bg-base-200 mb-4">
+      <div class="card-body">
+        <h2 class="card-title text-sm uppercase tracking-wider opacity-60 mb-1">User-Defined Validators</h2>
+        <p class="text-xs opacity-50 mb-4">
+          Each validator points to a JSON spec file. Rules (required keys &amp; enum constraints) are
+          auto-derived from the file's top-level keys and any <code>_schema.valid_*</code> lists.
+          Validator names appear in the "Validate As" dropdown on plan steps.
+        </p>
+
+        <!-- Validator table -->
+        <div class="overflow-x-auto mb-4">
+          <table class="table table-sm w-full" id="validators-table">
+            <thead>
+              <tr>
+                <th class="text-xs">Name</th>
+                <th class="text-xs">Spec File</th>
+                <th class="text-xs">On Fail</th>
+                <th class="text-xs"></th>
+              </tr>
+            </thead>
+            <tbody id="validators-tbody">
+              {% for name, entry in validators.items() %}
+              <tr data-vname="{{ name }}">
+                <td class="font-mono text-sm">{{ name }}</td>
+                <td class="font-mono text-xs break-all max-w-xs">{{ entry.source_spec }}</td>
+                <td>
+                  <select class="select select-xs select-bordered w-20" onchange="markValidatorsDirty()">
+                    <option {% if entry.on_fail == 'warn' %}selected{% endif %}>warn</option>
+                    <option {% if entry.on_fail == 'block' %}selected{% endif %}>block</option>
+                  </select>
+                </td>
+                <td class="flex gap-1">
+                  <button class="btn btn-xs btn-ghost" title="Preview rules"
+                    onclick="previewValidator('{{ name }}', '{{ entry.source_spec }}')">&#128269;</button>
+                  <button class="btn btn-xs btn-error btn-outline" onclick="removeValidator(this)">&#10005;</button>
+                </td>
+              </tr>
+              {% else %}
+              <tr id="validators-empty-row">
+                <td colspan="4" class="text-xs opacity-40 text-center">No validators defined yet.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Add validator form -->
+        <div class="bg-base-300 rounded-box p-3 mb-4">
+          <p class="text-xs font-semibold mb-2">Add Validator</p>
+          <div class="flex flex-wrap gap-2 items-end">
+            <div class="form-control">
+              <label class="label py-0"><span class="label-text text-xs">Name (slug)</span></label>
+              <input type="text" id="new-v-name" class="input input-bordered input-sm font-mono w-40"
+                placeholder="e.g. world_json">
+            </div>
+            <div class="form-control flex-1">
+              <label class="label py-0"><span class="label-text text-xs">Spec file path (absolute)</span></label>
+              <input type="text" id="new-v-spec" class="input input-bordered input-sm font-mono w-full"
+                placeholder="/path/to/spec.json">
+            </div>
+            <div class="form-control">
+              <label class="label py-0"><span class="label-text text-xs">On fail</span></label>
+              <select id="new-v-onfail" class="select select-bordered select-sm w-20">
+                <option>warn</option>
+                <option>block</option>
+              </select>
+            </div>
+            <button class="btn btn-sm btn-ghost btn-outline" onclick="previewNewValidator()">Preview</button>
+            <button class="btn btn-sm btn-success" onclick="addValidator()">+ Add</button>
+          </div>
+          <!-- Preview output -->
+          <div id="validator-preview" class="mt-3 hidden">
+            <p class="text-xs font-semibold mb-1">Derived rules:</p>
+            <pre id="validator-preview-content" class="text-xs bg-base-100 rounded p-2 overflow-auto max-h-40"></pre>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <button class="btn btn-sm btn-primary" onclick="saveValidators()">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg>
+            Save Validators
+          </button>
+          <span id="validators-status" class="text-sm opacity-60"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Hidden raw YAML used as base for form serialisation -->
 <textarea id="yaml-raw" class="hidden">{{ config.raw }}</textarea>
 
@@ -317,13 +426,15 @@
 <script>
   PAGE_HELP = {
     title: 'Setup',
-    description: 'Configure LLM provider API keys, assign models to agent tiers, and set sprite generation options.',
+    description: 'Configure LLM provider API keys, assign models to agent tiers, set sprite generation options, and manage output validation schema types.',
     tips: [
       'Tiers tab: assign one LLM model per tier. Tier 1 = best quality (directors), Tier 3 = fastest/cheapest (specialists).',
       'API Keys tab: paste provider keys here \u2014 stored in config/.env which is git-ignored.',
       'A provider is Active only when its API key environment variable is set and non-empty.',
+      'Providers tab: add or remove models in each provider catalog \u2014 save with the main Save button.',
       'Sprites tab: use stub for testing without real API calls; openai uses DALL-E 3.',
-      'Project tab: set your game project path for engine auto-detection and spec file injection.'
+      'Project tab: set your game project path for engine auto-detection and spec file injection.',
+      'Validators tab: define spec-file-driven validators \u2014 each validator derives required keys and enum constraints from a JSON spec file.'
     ],
     doc_url: '/guide/quick-start'
   };
@@ -380,6 +491,7 @@ document.addEventListener('keydown', function(e) {
     e.preventDefault();
     if (activeTab === 'tab-keys') { saveKeys(); }
     else if (activeTab === 'tab-project') { saveProject(); }
+    else if (activeTab === 'tab-validators') { saveValidators(); }
     else { saveConfig(); }
   }
 });
@@ -497,6 +609,169 @@ function updateSpecFilesDisplay(specFiles, projectPath, detected) {
     el.innerHTML = '<p class="opacity-40 text-sm">Spec files are shown after a project path is saved and an engine is detected.</p>';
   }
 }
+
+// ── Validators tab ──────────────────────────────────────────────────────────
+
+var _validatorsDirty = false;
+function markValidatorsDirty() { _validatorsDirty = true; }
+
+function removeValidator(btn) {
+  var row = btn.closest('tr');
+  if (row) row.remove();
+  // Remove the empty-state row if it somehow remained
+  var empty = document.getElementById('validators-empty-row');
+  if (empty) empty.remove();
+  markValidatorsDirty();
+}
+
+function addValidator() {
+  var name    = document.getElementById('new-v-name').value.trim().toLowerCase();
+  var spec    = document.getElementById('new-v-spec').value.trim();
+  var onFail  = document.getElementById('new-v-onfail').value;
+  if (!name) { showToast('Name is required', 'error'); return; }
+  if (!/^[a-z][a-z0-9_]*$/.test(name)) {
+    showToast('Name must be a lowercase slug (letters, digits, underscores)', 'error'); return;
+  }
+  if (!spec)  { showToast('Spec file path is required', 'error'); return; }
+  if (document.querySelector('#validators-tbody tr[data-vname="' + name + '"]')) {
+    showToast('Validator "' + name + '" already exists', 'error'); return;
+  }
+  // Remove empty-state row if present
+  var empty = document.getElementById('validators-empty-row');
+  if (empty) empty.remove();
+
+  var row = document.createElement('tr');
+  row.dataset.vname = name;
+  row.innerHTML =
+    '<td class="font-mono text-sm">' + name + '</td>' +
+    '<td class="font-mono text-xs break-all max-w-xs">' + spec + '</td>' +
+    '<td><select class="select select-xs select-bordered w-20" onchange="markValidatorsDirty()">' +
+      '<option' + (onFail === 'warn'  ? ' selected' : '') + '>warn</option>' +
+      '<option' + (onFail === 'block' ? ' selected' : '') + '>block</option>' +
+    '</select></td>' +
+    '<td class="flex gap-1">' +
+      '<button class="btn btn-xs btn-ghost" title="Preview rules" onclick="previewValidator(\'' + name + '\', \'' + spec.replace(/'/g, "\\'") + '\')">&#128269;</button>' +
+      '<button class="btn btn-xs btn-error btn-outline" onclick="removeValidator(this)">&#10005;</button>' +
+    '</td>';
+  document.getElementById('validators-tbody').appendChild(row);
+  document.getElementById('new-v-name').value = '';
+  document.getElementById('new-v-spec').value = '';
+  markValidatorsDirty();
+}
+
+async function previewValidator(name, specPath) {
+  var res = await fetch('/edit/config/validators/' + encodeURIComponent(name) + '/preview', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({source_spec: specPath, on_fail: 'warn'}),
+  });
+  var panel = document.getElementById('validator-preview');
+  var pre   = document.getElementById('validator-preview-content');
+  panel.classList.remove('hidden');
+  if (res.ok) {
+    var data = await res.json();
+    pre.textContent = JSON.stringify(data.rules, null, 2);
+  } else {
+    var err = await res.json();
+    pre.textContent = 'Error: ' + (err.detail || 'unknown');
+  }
+}
+
+async function previewNewValidator() {
+  var name = document.getElementById('new-v-name').value.trim() || '_preview';
+  var spec = document.getElementById('new-v-spec').value.trim();
+  if (!spec) { showToast('Enter a spec file path first', 'error'); return; }
+  await previewValidator(name, spec);
+}
+
+async function saveValidators() {
+  var status = document.getElementById('validators-status');
+  status.textContent = 'Saving\u2026';
+  var validators = {};
+  document.querySelectorAll('#validators-tbody tr[data-vname]').forEach(function(row) {
+    var name   = row.dataset.vname;
+    var spec   = row.cells[1].textContent.trim();
+    var onFail = row.querySelector('select').value;
+    validators[name] = {source_spec: spec, on_fail: onFail};
+  });
+  var res = await fetch('/edit/config/validators', {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({validators: validators}),
+  });
+  if (res.ok) {
+    showToast('Validators saved', 'success');
+    status.textContent = 'Saved';
+    _validatorsDirty = false;
+  } else {
+    var err = await res.json();
+    showToast(err.detail || 'Save failed', 'error');
+    status.textContent = 'Error';
+  }
+}
+
+// ── Provider model catalog (Providers tab) ─────────────────────────────────
+
+function removeProviderModel(btn, providerName, modelId) {
+  var row = btn.closest('tr');
+  if (row) row.remove();
+}
+
+function addProviderModel(providerName) {
+  var idInput = document.getElementById('new-model-id-' + providerName);
+  var ctxInput = document.getElementById('new-model-ctx-' + providerName);
+  var noteInput = document.getElementById('new-model-note-' + providerName);
+  var modelId = idInput.value.trim();
+  if (!modelId) { showToast('Model ID is required', 'error'); return; }
+  var tbody = document.querySelector('#provider-models-' + providerName + ' tbody');
+  var ctx = parseInt(ctxInput.value) || 0;
+  var note = noteInput.value.trim();
+  var row = document.createElement('tr');
+  row.dataset.provider = providerName;
+  row.innerHTML = '<td class="font-mono text-xs">' + modelId + '</td>'
+    + '<td>' + ctx.toLocaleString() + '</td>'
+    + '<td class="text-xs opacity-60">' + note + '</td>'
+    + '<td><button class="btn btn-xs btn-ghost text-error" onclick="removeProviderModel(this,\'' + providerName + '\',\'' + modelId + '\')">✕</button></td>';
+  tbody.appendChild(row);
+  idInput.value = ''; ctxInput.value = ''; noteInput.value = '';
+}
+
+function _collectProviderModels() {
+  // Returns {providerName: [{id, context_window, note}, ...]} from DOM
+  var result = {};
+  document.querySelectorAll('tr[data-provider]').forEach(function(row) {
+    var pname = row.dataset.provider;
+    if (!result[pname]) result[pname] = [];
+    var cells = row.querySelectorAll('td');
+    if (cells.length >= 3) {
+      var ctxRaw = cells[1].textContent.replace(/,/g, '').trim();
+      result[pname].push({
+        id: cells[0].textContent.trim(),
+        context_window: parseInt(ctxRaw) || 0,
+        note: cells[2].textContent.trim(),
+      });
+    }
+  });
+  return result;
+}
+
+// Extend buildYamlFromForm to also include edited provider models
+var _origBuildYaml = buildYamlFromForm;
+buildYamlFromForm = function() {
+  var current;
+  try { current = jsyaml.load(document.getElementById('yaml-raw').value) || {}; } catch(e) { current = {}; }
+  var domModels = _collectProviderModels();
+  if (current.providers && Object.keys(domModels).length > 0) {
+    Object.keys(domModels).forEach(function(pname) {
+      if (current.providers[pname]) {
+        current.providers[pname].models = domModels[pname];
+      }
+    });
+    // Re-build from modified current object so the raw textarea stays consistent
+    document.getElementById('yaml-raw').value = jsyaml.dump(current, {lineWidth: -1, sortKeys: false});
+  }
+  return _origBuildYaml();
+};
 </script>
 {% endblock %}
 

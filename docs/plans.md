@@ -128,14 +128,42 @@ python runner.py resume <run-id>
 
 ### Validate_as schema types
 
+The `validate_as` field on a plan step names a validator that checks the agent's output before the gate fires.
+
+#### Required config files
+
+The validator system relies on two files in `config/`:
+
+| File | Purpose | If missing |
+| ---- | ------- | ---------- |
+| `config/schema_types.yaml` | Drives the "Validate As" dropdown in the plan editor. Lists all available validator names. | Falls back to the built-in list `["json"]`. The dropdown still works but only shows `json`. |
+| `config/validators.yaml` | Stores user-defined validator entries (name → spec file path + on_fail). | No user-defined validators are loaded; all custom `validate_as` values act as no-ops. |
+
+Both files are created automatically the first time you save through **Setup → Validators**. You can also create them manually:
+
+```yaml
+# config/schema_types.yaml
+schema_types:
+  - json
+  - world_json
+```
+
+```yaml
+# config/validators.yaml
+world_json:
+  source_spec: /absolute/path/to/your/spec.json
+  on_fail: warn
+```
+
+**Built-in type:**
+
 | Schema | What it checks |
 | ------ | -------------- |
 | `json` | Output contains valid JSON (inside a ` ```json ` fence or bare) |
-| `level_json` | JSON with required level fields: `id`, `name_display`, `waves`, `props` |
-| `sprite_spec` | JSON with `name`, `prompt`, `width`, `height` |
-| `code_block` | Output contains at least one fenced code block |
-| `feature_design` | Markdown with `## Concept`, `## Mechanics`, `## Risks` sections |
-| `barrio_bravo_world` | Full Barrio Bravo world JSON block — validates required keys, wave gaps, speaker/trigger enums, `street_food` prop count per combat wave, ≥ 4 `scenario_ads`, ≥ 11 dialogues, boss block, and all 20 `art_direction` keys |
+
+**User-defined validators** are configured in **Setup → Validators**. Each validator points to a JSON spec file; required keys and enum constraints are auto-derived from that file (top-level keys become required; `_schema.valid_*` lists become enum rules). Validators you add automatically appear in the plan editor's "Validate As" dropdown.
+
+User-defined validator names that are not yet registered act as no-ops — the step passes through without an output check.
 
 Validation errors are logged but do not stop the pipeline unless the gate is `conditional` and "REJECTED" appears in the output.
 
@@ -153,7 +181,7 @@ steps:
     tier: 2
     action: "Write a one-paragraph concept for this feature."
     gate: human_review
-    validate_as: feature_design
+    validate_as: json
 ```
 
 ---

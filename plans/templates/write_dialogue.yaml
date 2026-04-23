@@ -19,7 +19,6 @@ steps:
       the trigger conditions for each line. Ensure the dialogue fits
       the established character voices and world lore.
     gate: auto
-    validate_as: feature_design
 
   - id: dialogue_writing
     agent: writer

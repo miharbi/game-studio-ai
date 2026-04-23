@@ -285,7 +285,7 @@ Same schema as `PUT` above.
 
 ## Config
 
-Read and write `config/models.yaml` (model routing) and `config/.env` (API keys).
+Read and write `config/models.yaml` (model routing), `config/.env` (API keys), and `config/schema_types.yaml` (output validation schema types).
 
 ### `PUT /edit/config` — Save model configuration
 
@@ -337,6 +337,118 @@ Merges the provided keys into `config/.env`. Only key names declared in `models.
 #### Errors for `PUT /edit/config/keys`
 
 `422` if a key name is not declared in `models.yaml`.
+
+---
+
+### `GET /edit/config/schema-types` — List validation schema types
+
+Returns the current list of schema type names from `config/schema_types.yaml`.
+
+#### Response `200` for `GET /edit/config/schema-types`
+
+```json
+{ "schema_types": ["json", "world_json"] }
+```
+
+---
+
+### `PUT /edit/config/schema-types` — Save validation schema types
+
+Persists a new list of schema type names to `config/schema_types.yaml`. The updated list is picked up immediately by the plan editor without a server restart.
+
+#### Request Body for `PUT /edit/config/schema-types` (`application/json`)
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `schema_types` | list of strings | Ordered list of type slugs (lowercase, underscores only) |
+
+#### Response `200` for `PUT /edit/config/schema-types`
+
+```json
+{ "status": "saved", "schema_types": ["json", "world_json"] }
+```
+
+#### Errors for `PUT /edit/config/schema-types`
+
+| Code | Reason |
+| ---- | ------ |
+| `422` | A type name is not a valid lowercase slug, or the list is empty |
+
+---
+
+### `GET /edit/config/validators` — List user-defined validators
+
+Returns all validator entries from `config/validators.yaml`.
+
+#### Response `200` for `GET /edit/config/validators`
+
+```json
+{
+  "validators": {
+    "world_json": { "source_spec": "/path/to/spec.json", "on_fail": "warn" }
+  }
+}
+```
+
+---
+
+### `PUT /edit/config/validators` — Save user-defined validators
+
+Persists validators to `config/validators.yaml` and automatically syncs their names into `config/schema_types.yaml`.
+
+#### Request Body for `PUT /edit/config/validators` (`application/json`)
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `validators` | object | Map of `name → {source_spec, on_fail}` |
+
+#### Response `200` for `PUT /edit/config/validators`
+
+```json
+{ "status": "saved", "validators": ["world_json"], "schema_types": ["json", "world_json"] }
+```
+
+#### Errors for `PUT /edit/config/validators`
+
+| Code | Reason |
+| ---- | ------ |
+| `422` | A validator name is not a valid lowercase slug |
+
+---
+
+### `POST /edit/config/validators/{name}/preview` — Preview derived rules
+
+Derives and returns the validation rules that would be extracted from the given spec file, without saving anything.
+
+#### Path Params for `POST /edit/config/validators/{name}/preview`
+
+- `name`: validator slug (e.g. `world_json`)
+
+#### Request Body (`application/json`)
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `source_spec` | string | Absolute path to the JSON spec file |
+| `on_fail` | string | `warn` or `block` (default: `warn`) |
+
+#### Response `200` for `POST /edit/config/validators/{name}/preview`
+
+```json
+{
+  "name": "world_json",
+  "source_spec": "/path/to/spec.json",
+  "rules": {
+    "required_keys": ["id", "name_display", "waves"],
+    "enums": { "enemy_type": ["enemy_1", "enemy_2", "boss_1"] }
+  }
+}
+```
+
+#### Errors for `POST /edit/config/validators/{name}/preview`
+
+| Code | Reason |
+| ---- | ------ |
+| `422` | Spec file cannot be read or parsed |
 
 ---
 

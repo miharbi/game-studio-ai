@@ -15,7 +15,6 @@ steps:
       Review the proposed feature against the game's creative vision.
       Approve or reject the concept and provide refinement notes.
     gate: human_review
-    validate_as: feature_design
 
   - id: game_design_spec
     agent: game_designer
@@ -34,7 +33,6 @@ steps:
       parameters. Flag any new JSON schema keys needed.
     depends_on: [game_design_spec]
     gate: auto
-    validate_as: feature_design
 
   - id: qa_test_plan
     agent: qa_tester

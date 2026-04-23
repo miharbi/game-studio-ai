@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}{{ filename }} — Game Studio AI{% endblock %}
-{% block page_title %}Edit Plan: {{ filename }}{% endblock %}
+{% block page_title %}Edit Plan: {{ filename | replace('.yaml','') | replace('_',' ') | title }}{% endblock %}
 {% block head_extra %}
 {% if local_assets %}
 <script src="/static/vendor/sortable.min.js"></script>

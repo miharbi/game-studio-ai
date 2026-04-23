@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}{{ agent.name }} — Game Studio AI{% endblock %}
-{% block page_title %}Edit Agent: {{ filename }}{% endblock %}
+{% block page_title %}Edit Agent: {{ filename | replace('.md','') | replace('_',' ') | title }}{% endblock %}
 {% block content %}
 <!-- Breadcrumb -->
 <div class="breadcrumbs text-sm mb-4">

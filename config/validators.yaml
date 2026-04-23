@@ -1,0 +1,14 @@
+# config/validators.yaml
+# User-defined output validators for plan steps.
+#
+# Each entry maps a validator name to its configuration:
+#
+#   my_validator:
+#     source_spec: /path/to/spec.json   # absolute or project-relative path
+#     on_fail: warn                      # warn | block  (default: warn)
+#
+# The spec JSON may contain a "_schema" block with "valid_*" lists that
+# define allowed enum values.  All top-level keys (except "_schema") are
+# treated as required keys in agent output.
+#
+# Add validators via Setup → Validators in the web UI.

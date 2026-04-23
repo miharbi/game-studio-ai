@@ -5,37 +5,45 @@ Returns a list of error strings (empty list = valid).
 from __future__ import annotations
 
 import json
-from typing import Any
+from pathlib import Path
+
+import yaml
+
+_SCHEMA_TYPES_PATH = Path(__file__).resolve().parents[2] / "config" / "schema_types.yaml"
+
+_BUILTIN_SCHEMA_TYPES: list[str] = ["json"]
+
+
+def _load_schema_types() -> list[str]:
+    """Load schema types from config/schema_types.yaml, falling back to builtins."""
+    try:
+        data = yaml.safe_load(_SCHEMA_TYPES_PATH.read_text()) or {}
+        types = data.get("schema_types", [])
+        if isinstance(types, list) and types:
+            return [str(t) for t in types]
+    except Exception:
+        pass
+    return list(_BUILTIN_SCHEMA_TYPES)
 
 
 def validate_output(content: str, schema_type: str) -> list[str]:
     """
     Validate agent output against a named schema type.
-    Returns list of error strings; empty list = valid.
+
+    Built-in types: ``json``.
+    User-defined types are looked up in config/validators.yaml — unknown
+    types are silently skipped (returns []).
     """
-    validators = {
-        "json": _validate_json,
-        "level_json": _validate_level_json,
-        "sprite_spec": _validate_sprite_spec,
-        "code_block": _validate_code_block,
-        "feature_design": _validate_feature_design,
-        "barrio_bravo_world": _validate_barrio_bravo_world,
-    }
-    fn = validators.get(schema_type)
-    if fn is None:
-        return []
-    return fn(content)
+    if schema_type == "json":
+        return _validate_json(content)
+    # Delegate to the spec-file-driven validator for user-defined types
+    from src.validators.spec_validator import validate_with_spec
+    return validate_with_spec(content, schema_type)
 
 
-# Exported list of valid schema type names — single source of truth used by the UI.
-SCHEMA_TYPES: list[str] = [
-    "json",
-    "level_json",
-    "sprite_spec",
-    "code_block",
-    "feature_design",
-    "barrio_bravo_world",
-]
+# Exported list of valid schema type names — loaded from config/schema_types.yaml at import
+# time. Unknown custom types pass through validate_output() as no-ops.
+SCHEMA_TYPES: list[str] = _load_schema_types()
 
 
 def _validate_json(content: str) -> list[str]:
@@ -45,63 +53,6 @@ def _validate_json(content: str) -> list[str]:
         return []
     except json.JSONDecodeError as e:
         return [f"Invalid JSON: {e}"]
-
-
-def _validate_level_json(content: str) -> list[str]:
-    errors = _validate_json(content)
-    if errors:
-        return errors
-    data: dict[str, Any] = json.loads(_extract_json_block(content))
-    required_keys = ["id", "name_display", "waves", "props", "scenario_ads"]
-    missing = [k for k in required_keys if k not in data]
-    if missing:
-        errors.append(f"Missing required level keys: {missing}")
-    if "lanes" in data:
-        lanes = data["lanes"]
-        if not (0.0 <= lanes.get("y_top", 0) < lanes.get("y_bottom", 1)):
-            errors.append("lanes.y_top must be less than lanes.y_bottom")
-    return errors
-
-
-def _validate_sprite_spec(content: str) -> list[str]:
-    errors = _validate_json(content)
-    if errors:
-        return errors
-    data: dict[str, Any] = json.loads(_extract_json_block(content))
-    # Accept both formats: {name, type, prompt, dimensions} or {name, prompt, width, height}
-    missing = [k for k in ("name", "prompt") if k not in data]
-    has_dimensions = "dimensions" in data
-    has_wh = "width" in data and "height" in data
-    if not has_dimensions and not has_wh:
-        missing.append("dimensions (or width+height)")
-    if missing:
-        errors.append(f"Missing sprite spec keys: {missing}")
-    return errors
-
-
-def _validate_code_block(content: str) -> list[str]:
-    if "```" not in content:
-        return ["Expected a fenced code block (```) in output"]
-    return []
-
-
-def _validate_feature_design(content: str) -> list[str]:
-    required_sections = ["## Concept", "## Mechanics", "## Risks"]
-    missing = [s for s in required_sections if s not in content]
-    if missing:
-        return [f"Feature design missing sections: {missing}"]
-    return []
-
-
-def _validate_barrio_bravo_world(content: str) -> list[str]:
-    """Validate a Barrio Bravo world JSON block via the Godot 4 world validator."""
-    json_errors = _validate_json(content)
-    if json_errors:
-        return json_errors
-    from src.validators.godot4_world import validate_world
-    data: dict[str, Any] = json.loads(_extract_json_block(content))
-    result = validate_world(data)
-    return result.errors
 
 
 def _extract_json_block(content: str) -> str:

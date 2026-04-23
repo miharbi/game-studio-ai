@@ -61,6 +61,21 @@ In **Tiers**:
 
 Only models from providers with a configured API key are available in these dropdowns.
 
+In **Providers** (optional):
+
+- Expand any provider to see its model catalog
+- Add a new model row (ID, context window, note) or remove an existing one with ✕
+- Click **Save** — changes are written back to `config/models.yaml`
+
+In **Validators** (optional):
+
+- Click **Add Validator**: give it a lowercase slug name and the absolute path to a JSON spec file from your project
+- Hit **Preview** to see the rules that will be derived (required keys + enum constraints from `_schema.valid_*` lists in the spec file)
+- Choose **On Fail** (`warn` keeps the pipeline running; `block` stops it on errors)
+- Click **Save Validators** — the name appears in the plan editor's "Validate As" dropdown immediately
+
+> **Required files:** saving through this UI creates `config/schema_types.yaml` and `config/validators.yaml` automatically. If either file is absent when the server starts, the system falls back safely — `schema_types.yaml` missing means only `json` appears in dropdowns; `validators.yaml` missing means all custom `validate_as` values are treated as no-ops. You can also create or edit both files by hand (see [Plan YAML Schema Reference → Validate_as schema types](plans.md#validate_as-schema-types)).
+
 ---
 
 ## 4. Set Your Game Project Path

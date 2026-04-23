@@ -23,6 +23,8 @@ _CONFIG_DIR: Path = _ROOT / "config"
 _ENGINES_DIR: Path = _CONFIG_DIR / "engines"
 _SETTINGS_PATH: Path = _CONFIG_DIR / "settings.yaml"
 _DOT_ENV_PATH: Path = _CONFIG_DIR / ".env"
+_SCHEMA_TYPES_PATH: Path = _CONFIG_DIR / "schema_types.yaml"
+_VALIDATORS_PATH: Path = _CONFIG_DIR / "validators.yaml"
 
 # ── safety helpers ──────────────────────────────────────────────────────────
 
@@ -181,7 +183,18 @@ def _detect_spec_files(project_path: str, engine_id: str | None) -> list[dict]:
 
 
 def _list_schema_types() -> list[str]:
+    """Return schema types live from config/schema_types.yaml, falling back to SCHEMA_TYPES."""
+    try:
+        data = yaml.safe_load(_SCHEMA_TYPES_PATH.read_text()) or {}
+        types = data.get("schema_types", [])
+        if isinstance(types, list) and types:
+            return [str(t) for t in types]
+    except Exception:
+        pass
     return list(SCHEMA_TYPES)
+
+
+_SLUG_RE = re.compile(r"^[a-z][a-z0-9_]*$")
 
 
 # ── build helpers ───────────────────────────────────────────────────────────
@@ -244,6 +257,19 @@ class ConfigKeysBody(BaseModel):
 class RenameBody(BaseModel):
     new_name: str
     content: str
+
+
+class SchemaTypesBody(BaseModel):
+    schema_types: list[str]
+
+
+class ValidatorEntry(BaseModel):
+    source_spec: str
+    on_fail: str = "warn"
+
+
+class ValidatorsBody(BaseModel):
+    validators: dict[str, ValidatorEntry]
 
 
 class AgentBody(BaseModel):
@@ -489,6 +515,8 @@ async def config_edit(request: Request) -> HTMLResponse:
             "settings": settings,
             "detected_engine": detected_engine,
             "spec_files_status": spec_files_status,
+            "schema_types": _list_schema_types(),
+            "validators": _load_validators_raw(),
         },
     )
 
@@ -562,6 +590,129 @@ async def config_save_keys(body: ConfigKeysBody) -> dict:
     lines = [f"{k}={v}" for k, v in existing.items()]
     _DOT_ENV_PATH.write_text("\n".join(lines) + ("\n" if lines else ""))
     return {"status": "saved", "updated": updated}
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# SCHEMA TYPES
+# ═════════════════════════════════════════════════════════════════════════════
+
+@router.get(
+    "/config/schema-types",
+    tags=["Config"],
+    summary="List validation schema types",
+    response_description="Current list of schema type names",
+)
+async def schema_types_get() -> dict[str, list[str]]:
+    """Return the current schema type names from config/schema_types.yaml."""
+    return {"schema_types": _list_schema_types()}
+
+
+@router.put(
+    "/config/schema-types",
+    tags=["Config"],
+    summary="Save validation schema types",
+    response_description="Save status and updated type list",
+)
+async def schema_types_save(body: SchemaTypesBody) -> dict:
+    """Persist schema type names to config/schema_types.yaml.
+
+    Each name must be a lowercase slug (letters, digits, underscores).
+    Unknown types are silently skipped during validation — they act as no-ops.
+    """
+    invalid = [t for t in body.schema_types if not _SLUG_RE.match(t)]
+    if invalid:
+        raise HTTPException(422, f"Invalid schema type names (use lowercase slug): {invalid}")
+    if not body.schema_types:
+        raise HTTPException(422, "schema_types list must not be empty")
+    _CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    _SCHEMA_TYPES_PATH.write_text(
+        yaml.dump({"schema_types": body.schema_types}, default_flow_style=False, sort_keys=False)
+    )
+    return {"status": "saved", "schema_types": body.schema_types}
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# VALIDATORS
+# ═════════════════════════════════════════════════════════════════════════════
+
+def _load_validators_raw() -> dict[str, Any]:
+    """Return parsed validators dict from config/validators.yaml (comments stripped)."""
+    if not _VALIDATORS_PATH.exists():
+        return {}
+    try:
+        data = yaml.safe_load(_VALIDATORS_PATH.read_text()) or {}
+        return {k: v for k, v in data.items() if isinstance(v, dict)}
+    except Exception:
+        return {}
+
+
+@router.get(
+    "/config/validators",
+    tags=["Config"],
+    summary="List user-defined validators",
+    response_description="Current validator entries from config/validators.yaml",
+)
+async def validators_get() -> dict[str, Any]:
+    """Return all validator entries from ``config/validators.yaml``."""
+    return {"validators": _load_validators_raw()}
+
+
+@router.put(
+    "/config/validators",
+    tags=["Config"],
+    summary="Save user-defined validators",
+    response_description="Save status and synced schema types",
+)
+async def validators_save(body: ValidatorsBody) -> dict:
+    """Persist validators to ``config/validators.yaml`` and sync their names
+    into ``config/schema_types.yaml`` so they appear in the plan step dropdown."""
+    invalid_names = [n for n in body.validators if not _SLUG_RE.match(n)]
+    if invalid_names:
+        raise HTTPException(422, f"Invalid validator names (use lowercase slug): {invalid_names}")
+
+    # Build YAML with a header comment
+    entries: dict[str, Any] = {
+        name: {"source_spec": e.source_spec, "on_fail": e.on_fail}
+        for name, e in body.validators.items()
+    }
+    comment = (
+        "# User-defined validators — managed via Setup → Validators.\n"
+        "# source_spec: absolute path to a JSON spec file.\n"
+        "# on_fail: warn | block\n"
+    )
+    _CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    _VALIDATORS_PATH.write_text(comment + yaml.dump(entries, default_flow_style=False, sort_keys=False))
+
+    # Sync: ensure validator names appear in schema_types.yaml
+    current_types = _list_schema_types()
+    extra = [n for n in body.validators if n not in current_types]
+    # Remove names that were validators but are no longer
+    existing_validators = list(_load_validators_raw().keys())
+    synced = [t for t in current_types if t == "json" or t not in existing_validators] + extra
+    if "json" not in synced:
+        synced.insert(0, "json")
+    _SCHEMA_TYPES_PATH.write_text(
+        yaml.dump({"schema_types": synced}, default_flow_style=False, sort_keys=False)
+    )
+    return {"status": "saved", "validators": list(body.validators.keys()), "schema_types": synced}
+
+
+@router.post(
+    "/config/validators/{name}/preview",
+    tags=["Config"],
+    summary="Preview derived rules for a validator",
+    response_description="Derived required_keys and enum rules from the spec file",
+)
+async def validators_preview(name: str, body: ValidatorEntry) -> dict[str, Any]:
+    """Derive and return validation rules from the given spec file path.
+    Use this to preview what will be checked before saving."""
+    if not _SLUG_RE.match(name):
+        raise HTTPException(422, f"Invalid validator name: {name}")
+    from src.validators.spec_validator import derive_rules
+    rules = derive_rules(body.source_spec)
+    if not rules:
+        raise HTTPException(422, f"Cannot read or parse spec file: {body.source_spec!r}")
+    return {"name": name, "source_spec": body.source_spec, "rules": rules}
 
 
 # ═════════════════════════════════════════════════════════════════════════════

@@ -2,9 +2,8 @@ task: design_level
 description: >
   Full pipeline for designing a new game level/world — from concept
   through layout, wave composition, art direction, and technical review.
-  For Godot 4 / Barrio Bravo projects: pre-compute the structural skeleton
-  from levels_fallback.json before running the level_designer step, then
-  validate with barrio_bravo_world before the final merge.
+  For Godot 4 projects: pre-compute the structural skeleton from
+  levels_fallback.json before running the level_designer step.
 engine: godot4
 input: >
   Describe the new level. Include: world number (e.g. World03), theme,
@@ -24,7 +23,6 @@ steps:
       Reference the structural skeleton in the input — do not change
       scroll_limit_px, wave trigger_x values, or enemy types.
     gate: human_review
-    validate_as: feature_design
 
   - id: level_layout
     agent: level_designer
@@ -38,7 +36,6 @@ steps:
       Strip _meta_boss_hp before outputting. Include a difficulty analysis.
     depends_on: [level_concept]
     gate: auto
-    validate_as: barrio_bravo_world
 
   - id: world_dressing
     agent: world_builder
@@ -50,12 +47,11 @@ steps:
       Reference the Game Spec Context art_style and sample_assets.
     depends_on: [level_layout]
     gate: auto
-    validate_as: barrio_bravo_world
 
   - id: technical_review
     agent: technical_director
     action: >
-      Review the complete world JSON for schema compliance (barrio_bravo_world),
+      Review the complete world JSON for schema compliance,
       performance concerns (prop count, wave density), and consistency with
       the existing level architecture. Verify _meta_boss_hp has been stripped
       and note the HP value to apply to enemies[boss_type].health in

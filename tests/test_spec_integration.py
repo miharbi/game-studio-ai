@@ -1,10 +1,8 @@
-"""
-Tests: sdd-custom spec file integration with game-studio-ai.
+"""Tests: sdd-custom spec file integration with game-studio-ai.
 
 Covers:
   - Spec file loading into engine context (loader)
   - Per-agent context injection (orchestrator/context)
-  - Barrio Bravo world validator (validators/godot4_world)
   - World merger (mergers/godot4_world)
   - Difficulty skeleton generator (generators/godot4_skeleton)
 """
@@ -19,7 +17,6 @@ import pytest
 
 from src.engines.loader import load_engine_context
 from src.orchestrator.context import build_agent_context
-from src.validators.godot4_world import validate_world, ValidationResult
 from src.mergers.godot4_world import merge_world, _assign_ad_positions
 from src.generators.godot4_skeleton import (
     compute_skeleton,
@@ -288,96 +285,6 @@ class TestAgentContext:
     def test_empty_spec_files_returns_empty_string(self) -> None:
         result = build_agent_context("art_director", {"spec_files": {}})
         assert result == ""
-
-
-# ---------------------------------------------------------------------------
-# Validator tests
-# ---------------------------------------------------------------------------
-
-class TestWorldValidator:
-    def test_valid_world_passes(self, minimal_world: dict[str, Any]) -> None:
-        result = validate_world(minimal_world, prev_boss_hp=500)
-        assert result.passed, result.report()
-
-    def test_validator_rejects_missing_keys(self, minimal_world: dict[str, Any]) -> None:
-        del minimal_world["name_display"]
-        result = validate_world(minimal_world)
-        assert not result.passed
-        assert any("name_display" in e for e in result.errors)
-
-    def test_validator_rejects_empty_name_display(self, minimal_world: dict[str, Any]) -> None:
-        minimal_world["name_display"] = "   "
-        result = validate_world(minimal_world)
-        assert not result.passed
-
-    def test_validator_rejects_bad_lane(self, minimal_world: dict[str, Any]) -> None:
-        minimal_world["waves"][0]["enemies"][0]["lane"] = 1.5
-        result = validate_world(minimal_world)
-        assert not result.passed
-        assert any("lane=1.5" in e for e in result.errors)
-
-    def test_validator_rejects_insufficient_street_food(
-        self, minimal_world: dict[str, Any]
-    ) -> None:
-        # 2 combat waves → need 1 street_food; remove all food props
-        minimal_world["props"] = [
-            p for p in minimal_world["props"] if p["type"] != "street_food"
-        ]
-        result = validate_world(minimal_world)
-        assert not result.passed
-        assert any("street_food" in e for e in result.errors)
-
-    def test_validator_rejects_too_few_ads(self, minimal_world: dict[str, Any]) -> None:
-        minimal_world["scenario_ads"] = minimal_world["scenario_ads"][:2]
-        result = validate_world(minimal_world)
-        assert not result.passed
-        assert any("scenario_ads" in e for e in result.errors)
-
-    def test_validator_rejects_duplicate_dialogue_ids(
-        self, minimal_world: dict[str, Any]
-    ) -> None:
-        minimal_world["dialogues_pool"].append(
-            {"id": "enc_w3_01", "speaker": "enemy", "text": "dup", "trigger": "spawn"}
-        )
-        result = validate_world(minimal_world)
-        assert not result.passed
-        assert any("enc_w3_01" in e for e in result.errors)
-
-    def test_validator_rejects_invalid_trigger(
-        self, minimal_world: dict[str, Any]
-    ) -> None:
-        minimal_world["dialogues_pool"][0]["trigger"] = "not_a_trigger"
-        result = validate_world(minimal_world)
-        assert not result.passed
-
-    def test_validator_rejects_invented_top_level_key(
-        self, minimal_world: dict[str, Any]
-    ) -> None:
-        minimal_world["invented_key"] = "oops"
-        result = validate_world(minimal_world)
-        assert not result.passed
-
-    def test_validator_rejects_missing_art_direction_key(
-        self, minimal_world: dict[str, Any]
-    ) -> None:
-        del minimal_world["art_direction"]["sidewalk"]
-        result = validate_world(minimal_world)
-        assert not result.passed
-
-    def test_validator_warns_about_boss_hp_scaling(
-        self, minimal_world: dict[str, Any]
-    ) -> None:
-        result = validate_world(minimal_world, prev_boss_hp=500)
-        assert any("health" in w or "HP" in w for w in result.warnings)
-
-    def test_validator_rejects_wave_trigger_gap_too_small(
-        self, minimal_world: dict[str, Any]
-    ) -> None:
-        # Set wave_02 trigger only 100px after wave_01
-        minimal_world["waves"][1]["trigger_x"] = 600.0
-        result = validate_world(minimal_world)
-        assert not result.passed
-        assert any("gap" in e for e in result.errors)
 
 
 # ---------------------------------------------------------------------------

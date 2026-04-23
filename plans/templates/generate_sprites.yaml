@@ -17,7 +17,6 @@ steps:
       image generation prompt, and negative prompt. Reference the
       project's established visual style guide.
     gate: auto
-    validate_as: sprite_spec
 
   - id: sprite_generation
     agent: technical_artist
@@ -30,7 +29,6 @@ steps:
       post-process the images.
     depends_on: [art_direction]
     gate: auto
-    validate_as: sprite_spec
 
   - id: sprite_qa
     agent: qa_tester
