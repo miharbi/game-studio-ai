@@ -45,6 +45,14 @@ See [docs/quick-start.md](docs/quick-start.md) for the full first-run UI flow.
 
 ---
 
+## Screenshots
+
+### Plan Editor — Pipeline Flow View
+
+![Plan editor showing the Design Level pipeline with nodes connected in flow view](docs/screenshots/plan-editor-flow.png)
+
+---
+
 ## Agent Hierarchy
 
 The studio has 28 agents organized into 3 tiers. Tier 1 owns vision and strategy, Tier 2 leads departments, and Tier 3 does the detailed implementation work.
